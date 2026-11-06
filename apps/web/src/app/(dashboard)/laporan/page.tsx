@@ -20,7 +20,6 @@ import {
   EmptyState,
   ErrorState,
   InlineLoader,
-  PermissionDenied,
   TableSkeleton,
   Tag,
   Toast,
@@ -80,9 +79,12 @@ function StatusBadge({ status }: { status: HumanStatus }) {
 }
 
 export default function ReportPage() {
-  const { can } = useAuth();
+  const { user } = useAuth();
+  // Penulis dan penyunting isi terakhir tidak dapat menyetujui insight.
+  const isOwnWork = (insight: Insight) =>
+    Boolean(user) &&
+    (insight.created_by === user?.id || insight.last_edited_by === user?.id);
   const { filters, apiParams } = useFilters();
-  const canEdit = can("analyst");
 
   const insightsQuery = useInsights();
   const reportsQuery = useReports();
@@ -156,7 +158,14 @@ export default function ReportPage() {
     if (!editing) return;
     try {
       await updateInsight.mutateAsync({ id: editing.id, body: { human_note: note } });
-      setToast({ message: "Catatan peninjau tersimpan.", tone: "success" });
+      const approvalDropped =
+        editing.human_status === "approved" && note !== editing.human_note;
+      setToast({
+        message: approvalDropped
+          ? "Catatan tersimpan. Persetujuan gugur dan status kembali ke draft."
+          : "Catatan peninjau tersimpan.",
+        tone: "success",
+      });
       setEditing(null);
     } catch (caught) {
       setToast({
@@ -263,26 +272,24 @@ export default function ReportPage() {
         title="Laporan Insight"
         subtitle="Temuan disusun manusia. Ringkasan otomatis hanya berupa rekomendasi yang wajib ditinjau sebelum dipakai sebagai bahan komunikasi."
         actions={
-          canEdit && (
-            <>
-              <button
-                type="button"
-                className="tp-btn"
-                onClick={() => setSuggestionsOpen(true)}
-              >
-                <Lightbulb className="h-4 w-4" aria-hidden />
-                Saran dari data
-              </button>
-              <button
-                type="button"
-                className="tp-btn tp-btn-primary"
-                onClick={() => setBuilderOpen(true)}
-              >
-                <Plus className="h-4 w-4" aria-hidden />
-                Susun laporan
-              </button>
-            </>
-          )
+          <>
+            <button
+              type="button"
+              className="tp-btn"
+              onClick={() => setSuggestionsOpen(true)}
+            >
+              <Lightbulb className="h-4 w-4" aria-hidden />
+              Saran dari data
+            </button>
+            <button
+              type="button"
+              className="tp-btn tp-btn-primary"
+              onClick={() => setBuilderOpen(true)}
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              Susun laporan
+            </button>
+          </>
         }
       />
 
@@ -337,15 +344,13 @@ export default function ReportPage() {
               title="Belum ada insight pada status ini"
               description="Buka “Saran dari data” untuk melihat rekomendasi berbasis periode dan filter yang sedang aktif, lalu tinjau sebelum disimpan ke laporan."
               action={
-                canEdit ? (
-                  <button
-                    type="button"
-                    className="tp-btn"
-                    onClick={() => setSuggestionsOpen(true)}
-                  >
-                    Lihat saran dari data
-                  </button>
-                ) : undefined
+                <button
+                  type="button"
+                  className="tp-btn"
+                  onClick={() => setSuggestionsOpen(true)}
+                >
+                  Lihat saran dari data
+                </button>
               }
             />
           ) : (
@@ -373,37 +378,39 @@ export default function ReportPage() {
                     {insight.is_synthetic_data && " · berbasis data sintetis"}
                   </p>
 
-                  {canEdit && (
-                    <div className="mt-2.5 flex flex-wrap items-center gap-3 border-t border-line pt-2.5">
+                  <div className="mt-2.5 flex flex-wrap items-center gap-3 border-t border-line pt-2.5">
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-primary hover:underline"
+                      onClick={() => {
+                        setEditing(insight);
+                        setNote(insight.human_note);
+                      }}
+                    >
+                      Tulis catatan
+                    </button>
+                    {insight.human_status !== "reviewed" && (
                       <button
                         type="button"
-                        className="text-xs font-medium text-primary hover:underline"
-                        onClick={() => {
-                          setEditing(insight);
-                          setNote(insight.human_note);
-                        }}
+                        className="text-xs text-muted hover:text-ink"
+                        onClick={() => changeStatus(insight, "reviewed")}
                       >
-                        Tulis catatan
+                        Tandai sudah ditinjau
                       </button>
-                      {insight.human_status !== "reviewed" && (
-                        <button
-                          type="button"
-                          className="text-xs text-muted hover:text-ink"
-                          onClick={() => changeStatus(insight, "reviewed")}
-                        >
-                          Tandai sudah ditinjau
-                        </button>
-                      )}
-                      {insight.human_status !== "approved" && (
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 text-xs text-muted hover:text-ink"
-                          onClick={() => changeStatus(insight, "approved")}
-                        >
-                          <Check className="h-3 w-3" aria-hidden />
-                          Setujui
-                        </button>
-                      )}
+                    )}
+                    {insight.human_status !== "approved" && (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 text-xs text-muted hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={() => changeStatus(insight, "approved")}
+                        disabled={isOwnWork(insight)}
+                        title={isOwnWork(insight) ? "Persetujuan harus oleh pengguna lain" : undefined}
+                      >
+                        <Check className="h-3 w-3" aria-hidden />
+                        Setujui
+                      </button>
+                    )}
+                    {!insight.first_approved_at && insight.human_status !== "approved" && (
                       <button
                         type="button"
                         className="inline-flex items-center gap-1 text-xs text-negative-strong hover:underline"
@@ -418,8 +425,8 @@ export default function ReportPage() {
                         <Trash2 className="h-3 w-3" aria-hidden />
                         Hapus
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -447,19 +454,13 @@ export default function ReportPage() {
               title="Belum ada laporan"
               description="Susun laporan dari insight yang sudah ditinjau, lalu ekspor sebagai PDF atau CSV agregat untuk kebutuhan internal."
               action={
-                canEdit ? (
-                  <button
-                    type="button"
-                    className="tp-btn tp-btn-primary"
-                    onClick={() => setBuilderOpen(true)}
-                  >
-                    Susun laporan pertama
-                  </button>
-                ) : (
-                  <p className="text-xs text-muted">
-                    Viewer dapat membaca dan mengekspor laporan yang sudah dibuat.
-                  </p>
-                )
+                <button
+                  type="button"
+                  className="tp-btn tp-btn-primary"
+                  onClick={() => setBuilderOpen(true)}
+                >
+                  Susun laporan pertama
+                </button>
               }
             />
           ) : (
@@ -515,22 +516,20 @@ export default function ReportPage() {
                       <Download className="h-3 w-3" aria-hidden />
                       Post ID
                     </button>
-                    {canEdit && (
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 text-xs text-negative-strong hover:underline"
-                        onClick={() =>
-                          setConfirm({
-                            kind: "report",
-                            id: report.id,
-                            title: report.title,
-                          })
-                        }
-                      >
-                        <Trash2 className="h-3 w-3" aria-hidden />
-                        Hapus
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-xs text-negative-strong hover:underline"
+                      onClick={() =>
+                        setConfirm({
+                          kind: "report",
+                          id: report.id,
+                          title: report.title,
+                        })
+                      }
+                    >
+                      <Trash2 className="h-3 w-3" aria-hidden />
+                      Hapus
+                    </button>
                   </div>
                 </li>
               ))}
@@ -546,9 +545,7 @@ export default function ReportPage() {
         title="Saran insight dari data"
         subtitle="Dibangkitkan dari template berbasis statistik periode aktif. Bukan kesimpulan final."
       >
-        {!canEdit ? (
-          <PermissionDenied needed="analyst atau admin" />
-        ) : suggestionsQuery.isLoading ? (
+        {suggestionsQuery.isLoading ? (
           <TableSkeleton rows={3} />
         ) : suggestionsQuery.isError ? (
           <ErrorState
@@ -652,114 +649,110 @@ export default function ReportPage() {
           </div>
         }
       >
-        {!canEdit ? (
-          <PermissionDenied needed="analyst atau admin" />
-        ) : (
-          <form id="form-laporan" onSubmit={submitReport} className="space-y-4" noValidate>
-            <div>
-              <label htmlFor="report-title" className="tp-label">
-                Judul laporan
-              </label>
-              <input
-                id="report-title"
-                className="tp-input"
-                value={reportTitle}
-                onChange={(event) => setReportTitle(event.target.value)}
-                placeholder="Contoh: Ringkasan percakapan kandidat gudang — Agustus"
-              />
-            </div>
+        <form id="form-laporan" onSubmit={submitReport} className="space-y-4" noValidate>
+          <div>
+            <label htmlFor="report-title" className="tp-label">
+              Judul laporan
+            </label>
+            <input
+              id="report-title"
+              className="tp-input"
+              value={reportTitle}
+              onChange={(event) => setReportTitle(event.target.value)}
+              placeholder="Contoh: Ringkasan percakapan kandidat gudang — Agustus"
+            />
+          </div>
 
-            <div>
-              <span className="tp-label">Insight yang disertakan</span>
-              {insights.length === 0 ? (
-                <p className="text-xs text-muted">
-                  Belum ada insight. Simpan minimal satu rekomendasi terlebih dahulu.
-                </p>
-              ) : (
-                <ul className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
-                  {insights.map((insight) => (
-                    <li key={insight.id}>
-                      <label className="flex items-start gap-2 rounded-lg border border-line px-3 py-2 text-xs">
-                        <input
-                          type="checkbox"
-                          className="mt-0.5"
-                          checked={selectedInsights.includes(insight.id)}
-                          onChange={() =>
-                            setSelectedInsights((current) =>
-                              current.includes(insight.id)
-                                ? current.filter((id) => id !== insight.id)
-                                : [...current, insight.id],
-                            )
-                          }
-                        />
-                        <span className="min-w-0">
-                          <span className="block font-medium text-ink">
-                            {insight.title}
-                          </span>
-                          <span className="block text-muted">
-                            {STATUS_LABEL[insight.human_status]}
-                          </span>
+          <div>
+            <span className="tp-label">Insight yang disertakan</span>
+            {insights.length === 0 ? (
+              <p className="text-xs text-muted">
+                Belum ada insight. Simpan minimal satu rekomendasi terlebih dahulu.
+              </p>
+            ) : (
+              <ul className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
+                {insights.map((insight) => (
+                  <li key={insight.id}>
+                    <label className="flex items-start gap-2 rounded-lg border border-line px-3 py-2 text-xs">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={selectedInsights.includes(insight.id)}
+                        onChange={() =>
+                          setSelectedInsights((current) =>
+                            current.includes(insight.id)
+                              ? current.filter((id) => id !== insight.id)
+                              : [...current, insight.id],
+                          )
+                        }
+                      />
+                      <span className="min-w-0">
+                        <span className="block font-medium text-ink">
+                          {insight.title}
                         </span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div>
-              <span className="tp-label">Grafik agregat</span>
-              <div className="flex flex-wrap gap-1.5">
-                {CHART_OPTIONS.map((chart) => (
-                  <button
-                    key={chart.key}
-                    type="button"
-                    aria-pressed={selectedCharts.includes(chart.key)}
-                    onClick={() =>
-                      setSelectedCharts((current) =>
-                        current.includes(chart.key)
-                          ? current.filter((key) => key !== chart.key)
-                          : [...current, chart.key],
-                      )
-                    }
-                    className={`tp-chip transition ${
-                      selectedCharts.includes(chart.key)
-                        ? "border-primary bg-primary-soft text-primary-strong"
-                        : "hover:border-primary/40"
-                    }`}
-                  >
-                    {chart.label}
-                  </button>
+                        <span className="block text-muted">
+                          {STATUS_LABEL[insight.human_status]}
+                        </span>
+                      </span>
+                    </label>
+                  </li>
                 ))}
-              </div>
-              <p className="mt-1.5 text-[11px] text-muted">
-                Maksimal enam grafik per laporan. Seluruh grafik bersifat agregat.
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="report-notes" className="tp-label">
-                Catatan laporan (opsional)
-              </label>
-              <textarea
-                id="report-notes"
-                className="tp-input min-h-[96px]"
-                value={reportNotes}
-                onChange={(event) => setReportNotes(event.target.value)}
-                placeholder="Konteks tambahan, batasan pembacaan, atau tindak lanjut yang disarankan."
-              />
-            </div>
-
-            {builderError && (
-              <p
-                role="alert"
-                className="rounded-lg border border-negative/20 bg-negative/5 px-3 py-2 text-xs text-negative-strong"
-              >
-                {builderError}
-              </p>
+              </ul>
             )}
-          </form>
-        )}
+          </div>
+
+          <div>
+            <span className="tp-label">Grafik agregat</span>
+            <div className="flex flex-wrap gap-1.5">
+              {CHART_OPTIONS.map((chart) => (
+                <button
+                  key={chart.key}
+                  type="button"
+                  aria-pressed={selectedCharts.includes(chart.key)}
+                  onClick={() =>
+                    setSelectedCharts((current) =>
+                      current.includes(chart.key)
+                        ? current.filter((key) => key !== chart.key)
+                        : [...current, chart.key],
+                    )
+                  }
+                  className={`tp-chip transition ${
+                    selectedCharts.includes(chart.key)
+                      ? "border-primary bg-primary-soft text-primary-strong"
+                      : "hover:border-primary/40"
+                  }`}
+                >
+                  {chart.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[11px] text-muted">
+              Maksimal enam grafik per laporan. Seluruh grafik bersifat agregat.
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="report-notes" className="tp-label">
+              Catatan laporan (opsional)
+            </label>
+            <textarea
+              id="report-notes"
+              className="tp-input min-h-[96px]"
+              value={reportNotes}
+              onChange={(event) => setReportNotes(event.target.value)}
+              placeholder="Konteks tambahan, batasan pembacaan, atau tindak lanjut yang disarankan."
+            />
+          </div>
+
+          {builderError && (
+            <p
+              role="alert"
+              className="rounded-lg border border-negative/20 bg-negative/5 px-3 py-2 text-xs text-negative-strong"
+            >
+              {builderError}
+            </p>
+          )}
+        </form>
       </Drawer>
 
       {/* --------------------------------------------------------- pratinjau */}

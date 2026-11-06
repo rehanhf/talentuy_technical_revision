@@ -28,14 +28,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/cn";
 import { formatDate, formatRelative } from "@/lib/format";
 import { filtersToSearchParams } from "@/lib/filters";
-import type { ResponseMeta, Role } from "@/lib/types";
+import type { ResponseMeta } from "@/lib/types";
 
 export interface NavItem {
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
   description: string;
-  minRole?: Role;
   section?: string;
 }
 
@@ -199,7 +198,7 @@ export function Sidebar({
           <p className="mb-3 text-[10px] uppercase tracking-wider text-slate-400">Akun workspace</p>
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-200 text-xs font-semibold text-blue-950">{user?.name.slice(0, 2).toUpperCase() ?? "TP"}</span>
-            <div className="min-w-0"><p className="truncate text-sm text-white">{user?.name}</p><p className="text-xs capitalize text-slate-400">{user?.role}</p></div>
+            <div className="min-w-0"><p className="truncate text-sm text-white">{user?.name}</p></div>
           </div>
         </div>
       )}
@@ -357,7 +356,6 @@ export function TopBar({
               </span>
               <span className="hidden text-xs leading-tight md:block">
                 <span className="block font-medium text-ink">{user?.name}</span>
-                <span className="block capitalize text-muted">{user?.role}</span>
               </span>
             </button>
 

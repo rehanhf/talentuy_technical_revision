@@ -52,11 +52,11 @@ def demo_accounts() -> dict:
     return {
         "accounts": [
             {"email": "admin@talentpulse.local", "role": "admin",
-             "description": "Kelola sumber data, taxonomy, dan koreksi label."},
+             "description": "Akun demo. Insight harus disetujui akun lain."},
             {"email": "analyst@talentpulse.local", "role": "analyst",
-             "description": "Eksplorasi penuh, monitor, insight, dan laporan."},
+             "description": "Akun demo. Insight harus disetujui akun lain."},
             {"email": "viewer@talentpulse.local", "role": "viewer",
-             "description": "Hanya melihat dashboard dan laporan."},
+             "description": "Akun demo. Insight harus disetujui akun lain."},
         ],
         "password": settings.demo_password,
         "notice": "Kredensial ini hanya untuk lingkungan pengembangan.",

@@ -17,7 +17,7 @@ from app.connectors.official_x import (
 from app.connectors.twitterapi_io import TwitterApiIoConnector
 from app.connectors.x_public_embed import PublicPostImportError, XPublicEmbedConnector
 from app.database import get_db
-from app.deps import get_current_user, require_admin, write_audit
+from app.deps import get_current_user, require_system_ops, write_audit
 from app.ingest import ingest_posts, reanalyze_all
 from app.models import AuditLog, IngestionRun, KeywordPreset, Post, PostAnalysis, Topic, User
 from app.schemas import (
@@ -52,6 +52,7 @@ def connectors(_user: User = Depends(get_current_user)) -> dict:
         "live_available": settings.live_mode_available,
         "provider": settings.x_api_provider,
         "connectors": [c.status() for c in available_connectors()],
+        "system_ops_enabled": settings.enable_system_ops,
         "notice": (
             "Pilih X_API_PROVIDER dan isi credential provider pada environment "
             "server. Token tidak pernah dikirim ke browser."
@@ -84,7 +85,7 @@ def update_topic(
     topic_id: str,
     payload: TopicUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin),
+    user: User = Depends(get_current_user),
 ) -> TopicOut:
     topic = db.get(Topic, topic_id)
     if topic is None:
@@ -132,7 +133,7 @@ def list_keyword_presets(
 def create_keyword_preset(
     payload: KeywordPresetIn,
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin),
+    user: User = Depends(get_current_user),
 ) -> KeywordPresetOut:
     topic = _topic_by_slug(db, payload.topic_slug)
     preset = KeywordPreset(
@@ -155,7 +156,7 @@ def update_keyword_preset(
     preset_id: str,
     payload: KeywordPresetUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin),
+    user: User = Depends(get_current_user),
 ) -> KeywordPresetOut:
     preset = db.get(KeywordPreset, preset_id)
     if preset is None:
@@ -179,7 +180,7 @@ def update_keyword_preset(
 def delete_keyword_preset(
     preset_id: str,
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin),
+    user: User = Depends(get_current_user),
 ) -> Response:
     preset = db.get(KeywordPreset, preset_id)
     if preset is None:
@@ -242,7 +243,7 @@ def data_quality(db: Session = Depends(get_db), _user: User = Depends(get_curren
 def import_file(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin),
+    user: User = Depends(get_current_user),
 ) -> ImportResult:
     content = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
@@ -286,7 +287,7 @@ def import_file(
 def import_public_x(
     payload: PublicPostUrlIn,
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin),
+    user: User = Depends(get_current_user),
 ) -> ImportResult:
     """Impor satu post X yang URL publiknya sudah diketahui."""
     connector = XPublicEmbedConnector()
@@ -326,7 +327,7 @@ def seed_demo_data(
     days: int = Query(90, ge=7, le=365),
     reset: bool = Query(False),
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin),
+    user: User = Depends(require_system_ops),
 ) -> dict:
     from app.seed import run_seed
 
@@ -356,7 +357,7 @@ def fetch_live(
     days: int = Query(7, ge=1, le=7, description="X API recent search hanya 7 hari terakhir."),
     max_results: int = Query(20, ge=10, le=100),
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin),
+    user: User = Depends(get_current_user),
 ) -> ImportResult:
     """Tarik post nyata melalui provider terpilih lalu jalankan pipeline yang sama.
 
@@ -410,7 +411,7 @@ def fetch_live(
 
 @router.post("/reanalyze")
 def reanalyze(
-    db: Session = Depends(get_db), user: User = Depends(require_admin)
+    db: Session = Depends(get_db), user: User = Depends(require_system_ops)
 ) -> IngestionRunOut:
     run = reanalyze_all(db, triggered_by=user.id)
     write_audit(db, user, "data.reanalyze", "ingestion_run", run.id)
@@ -434,7 +435,7 @@ def list_runs(
 def audit_log(
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    _user: User = Depends(require_admin),
+    _user: User = Depends(get_current_user),
 ) -> dict:
     rows = db.scalars(
         select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit)

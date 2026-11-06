@@ -11,7 +11,6 @@ import {
   Minus,
   RefreshCw,
   SearchX,
-  ShieldAlert,
   X,
 } from "lucide-react";
 import {
@@ -235,15 +234,6 @@ export function ErrorState({
   );
 }
 
-export function PermissionDenied({ needed }: { needed: string }) {
-  return (
-    <EmptyState
-      icon={<ShieldAlert className="h-5 w-5" aria-hidden />}
-      title="Akses dibatasi"
-      description={`Bagian ini hanya tersedia untuk role ${needed}. Hubungi admin bila Anda memerlukan akses.`}
-    />
-  );
-}
 
 export function InlineLoader({ label = "Memuat" }: { label?: string }) {
   return (

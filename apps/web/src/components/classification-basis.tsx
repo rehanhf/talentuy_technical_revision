@@ -4,7 +4,7 @@ import { Highlighter, PencilLine } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { SentimentBadge, Tag } from "@/components/ui";
-import { useCorrectLabels, useSuggestLabel, useTaxonomy } from "@/hooks/useApi";
+import { useCorrectLabels, useTaxonomy } from "@/hooks/useApi";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatPercent } from "@/lib/format";
@@ -220,31 +220,25 @@ export function ClassificationBasis({
 }
 
 /**
- * Admin mengoreksi label langsung; analis hanya mengusulkan koreksi yang
- * menandai post perlu ditinjau admin.
+ * Koreksi label dilakukan langsung oleh pengguna yang login.
  */
 export function LabelCorrection({
   post,
   field,
   onFieldChange,
-  mode,
   onDone,
 }: {
   post: Post;
   field: LabelField;
   onFieldChange: (field: LabelField) => void;
-  mode: "correct" | "suggest";
   onDone: (result: { message: string; tone: "success" | "error"; post?: Post }) => void;
 }) {
   const { data: taxonomy } = useTaxonomy();
   const correct = useCorrectLabels();
-  const suggest = useSuggestLabel();
   const [value, setValue] = useState("");
-  const [note, setNote] = useState("");
 
   useEffect(() => {
     setValue("");
-    setNote("");
   }, [field, post.id]);
 
   const options: Array<{ value: string; label: string }> = !taxonomy
@@ -257,33 +251,20 @@ export function LabelCorrection({
           ? taxonomy.intents.map((item) => ({ value: item, label: item }))
           : taxonomy.job_roles.map((item) => ({ value: item, label: item }));
 
-  const pending = correct.isPending || suggest.isPending;
+  const pending = correct.isPending;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!value) return;
     try {
-      if (mode === "correct") {
-        const key = {
-          topic: "topic_slug",
-          sentiment: "sentiment_label",
-          intent: "intent_label",
-          job_role: "job_role",
-        }[field];
-        const updated = await correct.mutateAsync({ postId: post.id, body: { [key]: value } });
-        onDone({ message: "Label berhasil dikoreksi.", tone: "success", post: updated });
-      } else {
-        const label = options.find((option) => option.value === value)?.label ?? value;
-        await suggest.mutateAsync({
-          postId: post.id,
-          body: { field, suggested_label: label, note: note.trim() },
-        });
-        onDone({
-          message: "Usulan koreksi terkirim ke admin.",
-          tone: "success",
-          post: { ...post, needs_review: true },
-        });
-      }
+      const key = {
+        topic: "topic_slug",
+        sentiment: "sentiment_label",
+        intent: "intent_label",
+        job_role: "job_role",
+      }[field];
+      const updated = await correct.mutateAsync({ postId: post.id, body: { [key]: value } });
+      onDone({ message: "Label berhasil dikoreksi.", tone: "success", post: updated });
     } catch (caught) {
       onDone({
         message: caught instanceof ApiError ? caught.userMessage : "Koreksi gagal disimpan.",
@@ -298,7 +279,7 @@ export function LabelCorrection({
         id="judul-koreksi"
         className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted"
       >
-        {mode === "correct" ? "Koreksi label" : "Usulkan koreksi"}
+        Koreksi label
       </h3>
       <form onSubmit={submit} className="space-y-2.5" noValidate>
         <div className="grid gap-2.5 sm:grid-cols-2">
@@ -338,32 +319,16 @@ export function LabelCorrection({
             </select>
           </div>
         </div>
-        {mode === "suggest" && (
-          <div>
-            <label htmlFor="koreksi-catatan" className="tp-label">
-              Catatan untuk admin (opsional)
-            </label>
-            <textarea
-              id="koreksi-catatan"
-              className="tp-input min-h-[60px]"
-              maxLength={500}
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-            />
-          </div>
-        )}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-[11px] text-muted">
-            {mode === "correct"
-              ? "Koreksi tercatat di audit log dan menggantikan label otomatis."
-              : "Usulan tercatat di audit log; admin yang memutuskan."}
+            Koreksi tercatat di audit log dan menggantikan label otomatis.
           </p>
           <button
             type="submit"
             className="tp-btn tp-btn-primary"
             disabled={!value || pending}
           >
-            {pending ? "Menyimpan…" : mode === "correct" ? "Simpan koreksi" : "Kirim usulan"}
+            {pending ? "Menyimpan…" : "Simpan koreksi"}
           </button>
         </div>
       </form>

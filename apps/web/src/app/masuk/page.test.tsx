@@ -23,7 +23,6 @@ vi.mock("@/hooks/useAuth", async () => {
       isLoading: false,
       login,
       logout: vi.fn(),
-      can: () => false,
     }),
   };
 });
@@ -34,7 +33,7 @@ vi.mock("@/lib/api", async () => {
     ...actual,
     apiRequest: vi.fn(async () => ({
       accounts: [
-        { email: "admin@talentpulse.local", role: "admin", description: "Kelola data" },
+        { email: "admin@talentpulse.local", description: "Kelola data" },
       ],
       password: "TalentPulse123!",
     })),

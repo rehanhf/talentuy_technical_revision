@@ -8,7 +8,6 @@ import {
   ConfirmDialog,
   Drawer,
   ErrorState,
-  PermissionDenied,
   TableSkeleton,
   Tag,
 } from "@/components/ui";
@@ -42,11 +41,9 @@ const EMPTY_FORM: PresetForm = {
  * mengubah kode; pengguna memakainya di Pencarian Post.
  */
 export function KeywordPresetManager({
-  isAdmin,
   topics,
   onToast,
 }: {
-  isAdmin: boolean;
   topics: TopicMeta[];
   onToast: (toast: { message: string; tone: "success" | "error" }) => void;
 }) {
@@ -128,12 +125,10 @@ export function KeywordPresetManager({
         title="Preset kata kunci"
         description="Kueri terpandu per kategori isu yang tampil di Pencarian Post, agar pengguna baru dapat mulai menelusuri tanpa mengetik kueri."
         actions={
-          isAdmin && (
-            <button type="button" className="tp-btn" onClick={() => openForm("new")}>
-              <Plus className="h-3.5 w-3.5" aria-hidden />
-              Tambah preset
-            </button>
-          )
+          <button type="button" className="tp-btn" onClick={() => openForm("new")}>
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            Tambah preset
+          </button>
         }
       >
         {presets.isError ? (
@@ -155,15 +150,13 @@ export function KeywordPresetManager({
               <li key={slug} className="rounded-lg border border-line px-3 py-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-medium text-ink">{group.name}</span>
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      className="text-xs text-primary hover:underline"
-                      onClick={() => openForm("new", slug)}
-                    >
-                      Tambah
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => openForm("new", slug)}
+                  >
+                    Tambah
+                  </button>
                 </div>
                 <ul className="mt-1.5 space-y-1">
                   {group.items.map((preset) => (
@@ -178,26 +171,24 @@ export function KeywordPresetManager({
                         </code>{" "}
                         {!preset.is_active && <Tag>nonaktif</Tag>}
                       </span>
-                      {isAdmin && (
-                        <span className="flex shrink-0 gap-3">
-                          <button
-                            type="button"
-                            className="text-primary hover:underline"
-                            onClick={() => openForm(preset)}
-                            aria-label={`Ubah preset ${preset.label}`}
-                          >
-                            Ubah
-                          </button>
-                          <button
-                            type="button"
-                            className="text-negative hover:underline"
-                            onClick={() => setPendingDelete(preset)}
-                            aria-label={`Hapus preset ${preset.label}`}
-                          >
-                            Hapus
-                          </button>
-                        </span>
-                      )}
+                      <span className="flex shrink-0 gap-3">
+                        <button
+                          type="button"
+                          className="text-primary hover:underline"
+                          onClick={() => openForm(preset)}
+                          aria-label={`Ubah preset ${preset.label}`}
+                        >
+                          Ubah
+                        </button>
+                        <button
+                          type="button"
+                          className="text-negative hover:underline"
+                          onClick={() => setPendingDelete(preset)}
+                          aria-label={`Hapus preset ${preset.label}`}
+                        >
+                          Hapus
+                        </button>
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -228,10 +219,7 @@ export function KeywordPresetManager({
           </div>
         }
       >
-        {!isAdmin ? (
-          <PermissionDenied needed="admin" />
-        ) : (
-          <form id="form-preset" onSubmit={submit} className="space-y-3" noValidate>
+        <form id="form-preset" onSubmit={submit} className="space-y-3" noValidate>
             <div>
               <label htmlFor="preset-topik" className="tp-label">
                 Kategori isu
@@ -318,7 +306,6 @@ export function KeywordPresetManager({
               </p>
             )}
           </form>
-        )}
       </Drawer>
 
       <ConfirmDialog

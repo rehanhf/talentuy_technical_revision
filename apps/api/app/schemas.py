@@ -124,7 +124,7 @@ class PostOut(BaseModel):
     # Kunci: topic, sentiment, intent, job_role. Kosong bila post dianalisis
     # sebelum dasar klasifikasi disimpan (jalankan analisis ulang).
     explanation: dict[str, LabelExplanation] = {}
-    # Confidence hanya diisi untuk admin/analyst.
+    # Confidence ditampilkan untuk seluruh pengguna yang telah login.
     sentiment_confidence: float | None = None
     intent_confidence: float | None = None
     model_version: str | None = None
@@ -138,12 +138,6 @@ class PostOut(BaseModel):
 
 
 LabelField = Literal["topic", "sentiment", "intent", "job_role"]
-
-
-class LabelSuggestionIn(BaseModel):
-    field: LabelField
-    suggested_label: str = Field(min_length=1, max_length=160)
-    note: str = Field(default="", max_length=500)
 
 
 class KeywordPresetIn(BaseModel):
@@ -266,6 +260,9 @@ class InsightUpdate(BaseModel):
     title: str | None = None
     summary: str | None = None
     human_note: str | None = None
+    evidence_filters: dict[str, Any] | None = None
+    metric_snapshot: dict[str, Any] | None = None
+    review_comment: str | None = Field(default=None, max_length=2000)
     human_status: HumanStatus | None = None
 
 
@@ -276,9 +273,13 @@ class InsightOut(BaseModel):
     human_note: str
     evidence_filters: dict[str, Any]
     metric_snapshot: dict[str, Any]
+    review_comment: str
     human_status: HumanStatus
     is_synthetic_data: bool
     author_name: str | None
+    created_by: str | None
+    last_edited_by: str | None
+    first_approved_at: datetime | None
     created_at: datetime
     updated_at: datetime
 

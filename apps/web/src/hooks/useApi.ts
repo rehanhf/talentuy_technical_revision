@@ -16,7 +16,6 @@ import type {
   IngestionRun,
   Insight,
   KeywordPreset,
-  LabelField,
   MethodologyResponse,
   Monitor,
   OverviewResponse,
@@ -185,14 +184,13 @@ export function useMethodology() {
   });
 }
 
-export function useAuditLog(enabled: boolean) {
+export function useAuditLog() {
   return useQuery({
     queryKey: ["audit"],
     queryFn: () =>
       apiRequest<{ items: AuditEntry[] }>("/data/audit", {
         params: { limit: 30 },
       }),
-    enabled,
     staleTime: 30_000,
   });
 }
@@ -206,12 +204,11 @@ export function useReportPreview(reportId: string | null) {
   });
 }
 
-export function useUsabilitySummary(enabled: boolean) {
+export function useUsabilitySummary() {
   return useQuery({
     queryKey: ["usability-summary"],
     queryFn: () =>
       apiRequest<{ items: UsabilitySummaryItem[] }>("/usability/summary"),
-    enabled,
     staleTime: 60_000,
   });
 }
@@ -400,7 +397,7 @@ export function useDeleteKeywordPreset() {
   });
 }
 
-/** Koreksi label (admin). Mengembalikan post terbaru beserta dasar klasifikasinya. */
+/** Koreksi label. Mengembalikan post terbaru beserta dasar klasifikasinya. */
 export function useCorrectLabels() {
   const client = useQueryClient();
   return useMutation({
@@ -408,24 +405,6 @@ export function useCorrectLabels() {
       await apiRequest(`/posts/${postId}/labels`, { method: "PATCH", body });
       return apiRequest<Post>(`/posts/${postId}`);
     },
-    onSuccess: () => {
-      client.invalidateQueries({ queryKey: ["posts"] });
-      client.invalidateQueries({ queryKey: ["audit"] });
-    },
-  });
-}
-
-/** Usulan koreksi (analis): menandai post perlu ditinjau admin. */
-export function useSuggestLabel() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      postId,
-      body,
-    }: {
-      postId: string;
-      body: { field: LabelField; suggested_label: string; note?: string };
-    }) => apiRequest(`/posts/${postId}/label-suggestions`, { method: "POST", body }),
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ["posts"] });
       client.invalidateQueries({ queryKey: ["audit"] });
@@ -447,7 +426,7 @@ export function useUsabilityLogger() {
   });
 }
 
-/** Bangkitkan ulang dataset demo sintetis (admin, hanya mode demo). */
+/** Bangkitkan ulang dataset demo sintetis (hanya saat system ops diaktifkan). */
 export function useSeedDemoData() {
   const client = useQueryClient();
   return useMutation({

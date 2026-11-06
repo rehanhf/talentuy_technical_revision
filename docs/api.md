@@ -9,13 +9,13 @@ Seluruh endpoint kecuali `/health`, `/methodology`, dan `/auth/*` memerlukan
 header `Authorization: Bearer <token>`. Token JWT diperoleh dari `/auth/login`
 dan berlaku 12 jam (`JWT_EXPIRE_MINUTES`).
 
-| Method | Path | Role | Keterangan |
+| Method | Path | Akses | Keterangan |
 | --- | --- | --- | --- |
 | POST | `/auth/login` | – | Body `{ "email", "password" }` → `{ access_token, user }` |
-| GET | `/auth/me` | viewer+ | Profil pengguna aktif |
+| GET | `/auth/me` | login | Profil pengguna aktif |
 | GET | `/auth/demo-accounts` | – | Daftar akun demo (hanya mode development) |
 
-Hierarki role: `viewer < analyst < admin`.
+Seluruh pengguna login memiliki akses yang sama; kolom `users.role` tidak dipakai untuk otorisasi.
 
 ## 2. Filter global
 
@@ -56,25 +56,24 @@ Setiap response analitik memuat blok `meta`:
 
 ## 3. Dashboard
 
-| Method | Path | Role | Isi |
+| Method | Path | Akses | Isi |
 | --- | --- | --- | --- |
-| GET | `/dashboard/overview` | viewer+ | KPI, deret volume, puncak, topik, sentimen per pekerjaan, heatmap, isu perhatian, pertanyaan teratas, keterbatasan |
-| GET | `/dashboard/trends` | viewer+ | `granularity=daily\|weekly`, `breakdown=topic\|job_role\|sentiment\|none` |
-| GET | `/dashboard/topics` | viewer+ | Ringkasan seluruh topik + `partitions` (kombinasi kategori isu × jenis pekerjaan: jumlah, porsi, pertanyaan, porsi negatif) + kata kunci terkait + pertanyaan |
-| GET | `/dashboard/topics/{slug}` | viewer+ | Detail satu topik: deret, sentimen, intent, pekerjaan, ringkasan usulan |
-| GET | `/dashboard/heatmap` | viewer+ | Matriks jenis pekerjaan × topik kekhawatiran |
-| GET | `/dashboard/questions` | viewer+ | Post ber-intent Pertanyaan (parameter `limit`) |
-| GET | `/dashboard/keywords` | viewer+ | Jaringan kata kunci terkait (parameter `limit`) |
-| GET | `/dashboard/insight-suggestions` | viewer+ | Draft insight berbasis template; wajib ditinjau manusia |
+| GET | `/dashboard/overview` | login | KPI, deret volume, puncak, topik, sentimen per pekerjaan, heatmap, isu perhatian, pertanyaan teratas, keterbatasan |
+| GET | `/dashboard/trends` | login | `granularity=daily\|weekly`, `breakdown=topic\|job_role\|sentiment\|none` |
+| GET | `/dashboard/topics` | login | Ringkasan seluruh topik + `partitions` (kombinasi kategori isu × jenis pekerjaan: jumlah, porsi, pertanyaan, porsi negatif) + kata kunci terkait + pertanyaan |
+| GET | `/dashboard/topics/{slug}` | login | Detail satu topik: deret, sentimen, intent, pekerjaan, ringkasan usulan |
+| GET | `/dashboard/heatmap` | login | Matriks jenis pekerjaan × topik kekhawatiran |
+| GET | `/dashboard/questions` | login | Post ber-intent Pertanyaan (parameter `limit`) |
+| GET | `/dashboard/keywords` | login | Jaringan kata kunci terkait (parameter `limit`) |
+| GET | `/dashboard/insight-suggestions` | login | Draft insight berbasis template; wajib ditinjau manusia |
 
 ## 4. Post
 
-| Method | Path | Role | Keterangan |
+| Method | Path | Akses | Keterangan |
 | --- | --- | --- | --- |
-| GET | `/posts` | viewer+ | `sort=relevance\|recent\|engagement`, `page`, `page_size` (5–100) |
-| GET | `/posts/{post_id}` | viewer+ | Detail satu post |
-| PATCH | `/posts/{post_id}/labels` | admin | Koreksi label manual (human-in-the-loop); nilai label divalidasi terhadap taxonomy |
-| POST | `/posts/{post_id}/label-suggestions` | analyst+ | Usulan koreksi `{ "field", "suggested_label", "note" }`; menandai post `needs_review` dan mencatat audit `label.suggest` |
+| GET | `/posts` | login | `sort=relevance\|recent\|engagement`, `page`, `page_size` (5–100) |
+| GET | `/posts/{post_id}` | login | Detail satu post |
+| PATCH | `/posts/{post_id}/labels` | login wajib | Koreksi label manual (human-in-the-loop); nilai label divalidasi terhadap taxonomy |
 
 Setiap post memuat `explanation`, yaitu dasar klasifikasi untuk keempat label
 (`topic`, `sentiment`, `intent`, `job_role`):
@@ -88,24 +87,24 @@ Setiap post memuat `explanation`, yaitu dasar klasifikasi untuk keempat label
 }
 ```
 
-Kata pemicu dicocokkan pada teks ternormalisasi, sehingga sebagian (mis. hasil
-ekspansi slang) tidak muncul persis pada teks asli. Saat admin mengoreksi label,
-`corrected` menjadi `true`, `rule` menyebut label sebelumnya, dan aturan otomatis
-semula disimpan di `auto_rule`. Post yang dianalisis sebelum kolom ini ada
-mengembalikan objek kosong sampai analisis ulang dijalankan.
+Kata pemicu dicocokkan pada teks ternormalisasi, sehingga sebagian (mis.
+ekspansi slang) tidak muncul persis pada teks asli. Saat pengguna mengoreksi
+label, `corrected` menjadi `true`, `rule` menyebut label sebelumnya, dan aturan
+otomatis semula disimpan di `auto_rule`. Post yang dianalisis sebelum kolom ini
+ada mengembalikan objek kosong sampai analisis ulang dijalankan.
 
-Nilai keyakinan model hanya dikirim untuk role analyst dan admin. Respons tidak
-pernah memuat identitas personal penulis; hanya `external_post_id` dan tautan.
+Nilai keyakinan model dikirim untuk seluruh pengguna login. Respons tidak pernah
+memuat identitas personal penulis; hanya `external_post_id` dan tautan.
 
 ## 5. Query dan monitor
 
-| Method | Path | Role |
+| Method | Path | Akses |
 | --- | --- | --- |
-| GET/POST | `/queries` | viewer+ / analyst+ |
-| PATCH/DELETE | `/queries/{id}` | analyst+ |
-| GET/POST | `/monitors` | viewer+ / analyst+ |
-| PATCH | `/monitors/{id}` | analyst+ |
-| POST | `/monitors/{id}/duplicate` | analyst+ |
+| GET/POST | `/queries` | login wajib |
+| PATCH/DELETE | `/queries/{id}` | login wajib |
+| GET/POST | `/monitors` | login wajib |
+| PATCH | `/monitors/{id}` | login wajib |
+| POST | `/monitors/{id}/duplicate` | login wajib |
 
 Response monitor memuat `current_count`, `previous_count`, `change_percent`,
 `trend_direction`, dan `sparkline` yang dihitung ulang setiap permintaan —
@@ -113,17 +112,17 @@ bukan aliran data real-time.
 
 ## 6. Insight dan laporan
 
-| Method | Path | Role | Keterangan |
+| Method | Path | Akses | Keterangan |
 | --- | --- | --- | --- |
-| GET | `/insights` | viewer+ | Filter opsional `status=draft\|reviewed\|approved` |
-| POST | `/insights` | analyst+ | Insight baru selalu berstatus draft bila tidak ditentukan |
-| PATCH | `/insights/{id}` | analyst+ | Analyst hanya boleh mengubah miliknya sendiri |
-| DELETE | `/insights/{id}` | analyst+ | |
-| GET/POST | `/reports` | viewer+ / analyst+ | `charts` maksimal 6 kunci |
-| GET | `/reports/{id}` | viewer+ | |
-| GET | `/reports/{id}/preview` | viewer+ | Isi laporan tanpa mengunduh berkas |
-| GET | `/reports/{id}/export?format=pdf\|csv\|posts` | viewer+ | `posts` hanya berisi Post ID, waktu, topik, pekerjaan, dan tautan |
-| DELETE | `/reports/{id}` | analyst+ | |
+| GET | `/insights` | login | Filter opsional `status=draft\|reviewed\|approved` |
+| POST | `/insights` | login wajib | Insight baru berstatus draft bila tidak ditentukan; `approved` ditolak (403) |
+| PATCH | `/insights/{id}` | login wajib | Penulis dan penyunting terakhir tidak dapat menyetujui (403); isi + `approved` dalam satu permintaan ditolak (422); edit isi insight approved mengembalikan status ke draft; `review_comment` bukan isi dan tidak diekspor |
+| DELETE | `/insights/{id}` | login wajib | Insight yang pernah disetujui (`first_approved_at` terisi) tidak dapat dihapus (409) |
+| GET/POST | `/reports` | login wajib | `charts` maksimal 6 kunci |
+| GET | `/reports/{id}` | login | |
+| GET | `/reports/{id}/preview` | login | Isi laporan tanpa mengunduh berkas |
+| GET | `/reports/{id}/export?format=pdf\|csv\|posts` | login | `posts` hanya berisi Post ID, waktu, topik, pekerjaan, dan tautan |
+| DELETE | `/reports/{id}` | login wajib | |
 
 Kunci grafik yang tersedia: `volume`, `topics`, `sentiment`, `job_roles`,
 `intents`. Seluruh ekspor pada mode demo memuat watermark
@@ -131,22 +130,22 @@ Kunci grafik yang tersedia: `volume`, `topics`, `sentiment`, `job_roles`,
 
 ## 7. Data dan pengaturan
 
-| Method | Path | Role | Keterangan |
+| Method | Path | Akses | Keterangan |
 | --- | --- | --- | --- |
-| GET | `/data/connectors` | viewer+ | Status connector dan mode data efektif |
-| GET | `/data/taxonomy` | viewer+ | Topik, jenis pekerjaan (+ `job_role_codes`), intent, sentimen, bahasa, rumus engagement |
-| PATCH | `/data/topics/{id}` | admin | Ubah nama, deskripsi, warna, kata kunci, status aktif |
-| GET | `/data/keyword-presets` | viewer+ | Preset kata kunci per kategori isu (termasuk yang nonaktif) |
-| POST | `/data/keyword-presets` | admin | `{ topic_slug, label, query_text, sort_order, is_active }` |
-| PATCH/DELETE | `/data/keyword-presets/{id}` | admin | Ubah atau hapus preset; tercatat di audit log |
-| GET | `/data/quality` | viewer+ | Cakupan analisis, porsi belum terklasifikasi, perlu ditinjau |
-| POST | `/data/import` | admin | `multipart/form-data` berisi `file` (CSV/JSON, maks. 8 MB) |
-| POST | `/data/import-public-x` | admin | Impor satu post X publik dari body JSON `{ "url": "https://x.com/.../status/..." }` |
-| POST | `/data/fetch-live` | admin | Tarik post nyata via X API resmi: `query` (wajib), `days` (1–7), `max_results` (10–100) |
-| POST | `/data/seed` | admin | `count` (100–5000), `days` (7–365), `reset` |
-| POST | `/data/reanalyze` | admin | Jalankan ulang pipeline NLP untuk seluruh post |
-| GET | `/data/runs` | viewer+ | Riwayat proses data (`limit` 1–100) |
-| GET | `/data/audit` | admin | Audit log (`limit` 1–200) |
+| GET | `/data/connectors` | login | Status connector dan mode data efektif |
+| GET | `/data/taxonomy` | login | Topik, jenis pekerjaan (+ `job_role_codes`), intent, sentimen, bahasa, rumus engagement |
+| PATCH | `/data/topics/{id}` | login wajib | Ubah nama, deskripsi, warna, kata kunci, status aktif |
+| GET | `/data/keyword-presets` | login | Preset kata kunci per kategori isu (termasuk yang nonaktif) |
+| POST | `/data/keyword-presets` | login wajib | `{ topic_slug, label, query_text, sort_order, is_active }` |
+| PATCH/DELETE | `/data/keyword-presets/{id}` | login wajib | Ubah atau hapus preset; tercatat di audit log |
+| GET | `/data/quality` | login | Cakupan analisis, porsi belum terklasifikasi, perlu ditinjau |
+| POST | `/data/import` | login wajib | `multipart/form-data` berisi `file` (CSV/JSON, maks. 8 MB) |
+| POST | `/data/import-public-x` | login wajib | Impor satu post X publik dari body JSON `{ "url": "https://x.com/.../status/..." }` |
+| POST | `/data/fetch-live` | login wajib | Tarik post nyata via X API resmi: `query` (wajib), `days` (1–7), `max_results` (10–100) |
+| POST | `/data/seed` | `ENABLE_SYSTEM_OPS=true` | `count` (100–5000), `days` (7–365), `reset` |
+| POST | `/data/reanalyze` | `ENABLE_SYSTEM_OPS=true` | Jalankan ulang pipeline NLP untuk seluruh post |
+| GET | `/data/runs` | login | Riwayat proses data (`limit` 1–100) |
+| GET | `/data/audit` | login wajib | Audit log (`limit` 1–200) |
 
 `/data/fetch-live` menjalankan `OfficialXApiConnector` di server lalu memasukkan
 hasilnya lewat pipeline yang sama dengan impor (deduplikasi `external_post_id`,
@@ -165,19 +164,19 @@ Kolom opsional: `like_count`, `repost_count`, `reply_count`, `quote_count`,
 
 ## 8. Sistem
 
-| Method | Path | Role | Keterangan |
+| Method | Path | Akses | Keterangan |
 | --- | --- | --- | --- |
 | GET | `/health` | – | Status database, mode data, jumlah post, versi |
 | GET | `/methodology` | – | Sumber data, pengolahan, etika, keterbatasan, kesegaran |
-| POST | `/usability/events` | viewer+ | Log alur pengujian (tanpa isi pencarian) |
-| GET | `/usability/summary` | admin | Agregat durasi dan jumlah langkah per tugas |
+| POST | `/usability/events` | login | Log alur pengujian (tanpa isi pencarian) |
+| GET | `/usability/summary` | login wajib | Agregat durasi dan jumlah langkah per tugas |
 
 ## 9. Penanganan error
 
 | Status | Bentuk | Contoh pesan |
 | --- | --- | --- |
 | 401 | `{"detail": "..."}` | Sesi berakhir — token kedaluwarsa atau tidak valid |
-| 403 | `{"detail": "..."}` | Role tidak mencukupi |
+| 403 | `{"detail": "..."}` | Operasi sistem dinonaktifkan atau aturan workflow dilanggar |
 | 404 | `{"detail": "..."}` | Entitas tidak ditemukan |
 | 413 | `{"detail": "Ukuran berkas melebihi 8 MB."}` | Impor terlalu besar |
 | 422 | `{"detail": "...", "errors": [{"field": "...", "message": "..."}]}` | Validasi parameter/berkas |

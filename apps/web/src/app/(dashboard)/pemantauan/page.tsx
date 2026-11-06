@@ -12,7 +12,6 @@ import {
   Drawer,
   EmptyState,
   ErrorState,
-  PermissionDenied,
   TableSkeleton,
   Tag,
   Toast,
@@ -24,7 +23,6 @@ import {
   useTaxonomy,
   useUpdateMonitor,
 } from "@/hooks/useApi";
-import { useAuth } from "@/hooks/useAuth";
 import { useFilters } from "@/hooks/useFilters";
 import { ApiError } from "@/lib/api";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -38,7 +36,6 @@ const DIRECTION_TONE: Record<string, string> = {
 
 export default function MonitoringPage() {
   const router = useRouter();
-  const { can } = useAuth();
   const { setFilters } = useFilters();
   const { data: monitors, isLoading, isError, error, refetch } = useMonitors();
   const { data: taxonomy } = useTaxonomy();
@@ -59,8 +56,6 @@ export default function MonitoringPage() {
   const [topics, setTopics] = useState<string[]>([]);
   const [window, setWindow] = useState(7);
   const [formError, setFormError] = useState<string | null>(null);
-
-  const canEdit = can("analyst");
 
   const resetForm = () => {
     setName("");
@@ -121,19 +116,17 @@ export default function MonitoringPage() {
         title="Monitoring"
         subtitle="Query yang disimpan untuk diikuti perkembangannya. Perbandingan dihitung ulang setiap halaman dibuka — bukan monitoring real-time."
         actions={
-          canEdit && (
-            <button
-              type="button"
-              className="tp-btn tp-btn-primary"
-              onClick={() => {
-                resetForm();
-                setFormOpen(true);
-              }}
-            >
-              <Plus className="h-4 w-4" aria-hidden />
-              Monitor baru
-            </button>
-          )
+          <button
+            type="button"
+            className="tp-btn tp-btn-primary"
+            onClick={() => {
+              resetForm();
+              setFormOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Monitor baru
+          </button>
         }
       />
 
@@ -160,19 +153,13 @@ export default function MonitoringPage() {
             title="Belum ada query yang dipantau"
             description="Simpan kombinasi kata kunci dan filter yang sering Anda periksa, lalu bandingkan dua periode berurutan untuk melihat perubahannya."
             action={
-              canEdit ? (
-                <button
-                  type="button"
-                  className="tp-btn tp-btn-primary"
-                  onClick={() => setFormOpen(true)}
-                >
-                  Buat monitor pertama
-                </button>
-              ) : (
-                <p className="text-xs text-muted">
-                  Hubungi analyst atau admin untuk membuat monitor.
-                </p>
-              )
+              <button
+                type="button"
+                className="tp-btn tp-btn-primary"
+                onClick={() => setFormOpen(true)}
+              >
+                Buat monitor pertama
+              </button>
             }
           />
         </Card>
@@ -235,31 +222,27 @@ export default function MonitoringPage() {
                 >
                   Buka di dashboard
                 </button>
-                {canEdit && (
-                  <>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 text-xs text-muted hover:text-ink"
-                      onClick={() => duplicateMonitor.mutate(monitor.id)}
-                    >
-                      <Copy className="h-3 w-3" aria-hidden />
-                      Duplikat
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 text-xs text-muted hover:text-ink"
-                      onClick={() =>
-                        updateMonitor.mutate({
-                          id: monitor.id,
-                          body: { is_archived: true },
-                        })
-                      }
-                    >
-                      <Archive className="h-3 w-3" aria-hidden />
-                      Arsipkan
-                    </button>
-                  </>
-                )}
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-xs text-muted hover:text-ink"
+                  onClick={() => duplicateMonitor.mutate(monitor.id)}
+                >
+                  <Copy className="h-3 w-3" aria-hidden />
+                  Duplikat
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-xs text-muted hover:text-ink"
+                  onClick={() =>
+                    updateMonitor.mutate({
+                      id: monitor.id,
+                      body: { is_archived: true },
+                    })
+                  }
+                >
+                  <Archive className="h-3 w-3" aria-hidden />
+                  Arsipkan
+                </button>
               </div>
             </article>
           ))}
@@ -287,10 +270,7 @@ export default function MonitoringPage() {
           </div>
         }
       >
-        {!canEdit ? (
-          <PermissionDenied needed="analyst atau admin" />
-        ) : (
-          <form id="form-monitor" onSubmit={submit} className="space-y-4" noValidate>
+        <form id="form-monitor" onSubmit={submit} className="space-y-4" noValidate>
             <div>
               <label htmlFor="monitor-name" className="tp-label">
                 Nama monitor
@@ -414,7 +394,6 @@ export default function MonitoringPage() {
               </p>
             )}
           </form>
-        )}
       </Drawer>
 
       {toast && (

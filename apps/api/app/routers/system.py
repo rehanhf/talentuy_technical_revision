@@ -12,9 +12,9 @@ from app.timeutil import utcnow
 from app.analytics import data_freshness
 from app.config import settings
 from app.database import get_db
-from app.deps import get_current_user, require_admin, require_analyst, write_audit
+from app.deps import get_current_user, write_audit
 from app.models import Post, PostAnalysis, Topic, UsabilityEvent, User
-from app.schemas import LabelSuggestionIn, UsabilityEventIn
+from app.schemas import UsabilityEventIn
 from app.taxonomy import INTENTS, JOB_ROLES, PRODUCT_LIMITATIONS, SENTIMENTS
 
 router = APIRouter(tags=["system"])
@@ -117,9 +117,9 @@ def correct_labels(
     post_id: str,
     payload: LabelCorrection,
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin),
+    user: User = Depends(get_current_user),
 ) -> dict:
-    """Koreksi manual label oleh admin (human-in-the-loop)."""
+    """Koreksi manual label oleh pengguna login (human-in-the-loop)."""
     post = db.get(Post, post_id)
     if post is None or post.analysis is None:
         raise HTTPException(status_code=404, detail="Post atau analisisnya tidak ditemukan.")
@@ -142,7 +142,7 @@ def correct_labels(
             entry["auto_rule"] = entry.get("rule", "")
         entry["corrected"] = True
         entry["rule"] = (
-            f"Dikoreksi manual oleh admin. Label sebelumnya: {previous or 'tanpa label'}."
+            f"Dikoreksi manual oleh {user.name}. Label sebelumnya: {previous or 'tanpa label'}."
         )
         explanation[key] = entry
     analysis.explanation = explanation
@@ -171,28 +171,6 @@ def correct_labels(
     return {"status": "ok", "post_id": post.id, "message": "Label berhasil diperbarui."}
 
 
-@router.post("/posts/{post_id}/label-suggestions", status_code=201)
-def suggest_label(
-    post_id: str,
-    payload: LabelSuggestionIn,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_analyst),
-) -> dict:
-    """Analis mengusulkan koreksi; admin memutuskan lewat koreksi label."""
-    post = db.get(Post, post_id)
-    if post is None or post.analysis is None:
-        raise HTTPException(status_code=404, detail="Post atau analisisnya tidak ditemukan.")
-
-    post.analysis.needs_review = True
-    write_audit(db, user, "label.suggest", "post", post.id, payload.model_dump())
-    db.commit()
-    return {
-        "status": "ok",
-        "post_id": post.id,
-        "message": "Usulan koreksi tercatat dan post ditandai perlu ditinjau admin.",
-    }
-
-
 @router.post("/usability/events", status_code=201)
 def log_usability_event(
     payload: UsabilityEventIn,
@@ -216,7 +194,7 @@ def log_usability_event(
 
 @router.get("/usability/summary")
 def usability_summary(
-    db: Session = Depends(get_db), _user: User = Depends(require_admin)
+    db: Session = Depends(get_db), _user: User = Depends(get_current_user)
 ) -> dict:
     rows = db.execute(
         select(

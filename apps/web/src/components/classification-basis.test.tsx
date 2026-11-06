@@ -36,7 +36,7 @@ const POST: Post = {
     sentiment: { rule: "Leksikon sentimen.", triggers: ["tidak jelas"], corrected: false, auto_rule: "" },
     intent: { rule: "Penanda pertanyaan ditemukan.", triggers: ["?"], corrected: false, auto_rule: "" },
     job_role: {
-      rule: "Dikoreksi manual oleh admin. Label sebelumnya: Lainnya.",
+      rule: "Dikoreksi manual oleh Admin Demo. Label sebelumnya: Lainnya.",
       triggers: [],
       corrected: true,
       auto_rule: "Tidak ada kata kunci dari lima jenis pekerjaan.",

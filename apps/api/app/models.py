@@ -179,15 +179,24 @@ class Insight(Base):
     human_note: Mapped[str] = mapped_column(Text, default="")
     evidence_filters: Mapped[dict] = mapped_column(JSON, default=dict)
     metric_snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
+    # Komentar peninjau: bukan isi insight dan tidak pernah diekspor ke laporan.
+    review_comment: Mapped[str] = mapped_column(
+        Text, default="", server_default="", nullable=False
+    )
     created_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
     human_status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False)
     is_synthetic_data: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Tidak pernah dikosongkan: insight yang pernah disetujui tidak dapat dihapus.
+    first_approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_edited_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=utcnow, onupdate=utcnow, nullable=False
     )
 
-    author: Mapped[User | None] = relationship("User", lazy="joined")
+    author: Mapped[User | None] = relationship(
+        "User", lazy="joined", foreign_keys=[created_by]
+    )
 
 
 class Report(Base):

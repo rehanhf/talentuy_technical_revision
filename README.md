@@ -55,9 +55,9 @@ tunggal saat menambah atau mengubah fitur.
 | Tiga intensi: pertanyaan, keluhan, pengalaman | 1.3 butir 2 | Label intent | Selesai |
 | Lima jenis pekerjaan sebagai partisi dan filter | 1.3 butir 2, Tujuan 2 | `taxonomy.JOB_ROLES`, filter global, kartu partisi Eksplorasi Topik, heatmap Overview | Selesai |
 | Dua mode data beserta penandanya | 1.3 butir 3 | Badge + watermark laporan | Selesai |
-| Tiga peran pengguna | 1.3 butir 4 | admin / analyst / viewer | Selesai |
+| Tiga peran pengguna | 1.3 butir 4 | Dihapus: satu tingkat akses setelah login, dilindungi tiga aturan insight | **Menyimpang dari naskah** |
 | Dasar klasifikasi tampil di antarmuka | 1.3 butir 5, Tujuan 3 | `post_analysis.explanation` + panel detail post | Selesai |
-| Koreksi label oleh admin + audit log | 1.3 butir 5 | Detail post (admin mengoreksi, analis mengusulkan) | Selesai |
+| Koreksi label oleh admin + audit log | 1.3 butir 5 | Detail post (setiap pengguna login mengoreksi langsung; audit log dan `auto_rule` menyimpan label asal) | **Menyimpang dari naskah** |
 | Batas etika, agregat, tanpa pemrofilan | 1.3 butir 6 | Metodologi & Etika | Selesai |
 | Enam karakteristik Ellis jadi fitur | Tujuan 2, 2.1.1 | 6 dari 6 — *starting* lewat preset kata kunci | Selesai |
 | Dua konstruk IFT: *scent* dan *patches* | 2.1.2 | *Patches* = kartu kategori isu × jenis pekerjaan | Selesai |
@@ -72,9 +72,6 @@ naskah.
 
 | Antarmuka | Naskah |
 | --- | --- |
-| `admin` | administrator |
-| `analyst` | analis |
-| `viewer` | peninjau |
 | Dashboard | dasbor informasi TalentPulse |
 | topic / sentiment / intent | kategori isu / polaritas sentimen / intensi percakapan |
 
@@ -107,7 +104,7 @@ sidang. Rincian teknis ada di [`docs/api.md`](docs/api.md) dan
 ### 2. Preset kata kunci — selesai
 
 - Pencarian Post menampilkan preset per kategori isu; sekali klik mengisi kueri.
-- Preset disimpan di tabel `keyword_presets` dan disunting admin lewat
+- Preset disimpan di tabel `keyword_presets` dan disunting pengguna lewat
   **Data & Pengaturan → Preset kata kunci**; perubahan tercatat di audit log.
 
 ### 3. Tampilan dasar klasifikasi di antarmuka — selesai
@@ -117,9 +114,8 @@ sidang. Rincian teknis ada di [`docs/api.md`](docs/api.md) dan
   `post_analysis.explanation`; API mengembalikannya apa adanya.
 - Detail post menampilkan aturan tiap label dan menyorot kata pemicu pada teks
   asli. Pemicu yang baru cocok setelah normalisasi slang diberi keterangan.
-- Dari tampilan yang sama, admin mengoreksi label dan analis mengusulkan koreksi
-  (post ditandai perlu ditinjau). Label yang dikoreksi tetap memperlihatkan
-  aturan otomatis semula.
+- Dari tampilan yang sama, pengguna login mengoreksi label secara langsung. Label
+  yang dikoreksi tetap memperlihatkan aturan otomatis semula.
 - Post yang dianalisis sebelum fitur ini menampilkan pemberitahuan sampai
   analisis ulang dijalankan.
 
@@ -136,7 +132,7 @@ sidang. Rincian teknis ada di [`docs/api.md`](docs/api.md) dan
 | Hal | Keadaan | Pilihan |
 | --- | --- | --- |
 | Pengurutan berdasarkan *engagement* di Pencarian Post | Data engagement tidak tersedia untuk post nyata melalui oEmbed | Hapus dari MVP, **atau** batasi hanya mode demo dan nyatakan pada Metodologi & Etika |
-| Alur persetujuan Laporan Insight | Sistem sudah punya `draft → ditinjau → disetujui`, tetapi 1.3 butir 4 menyebut peninjau hanya membaca hasil | Perluas definisi peninjau di 1.3 butir 4 agar mencakup persetujuan laporan, **atau** turunkan alur itu menjadi status internal milik analis |
+| Peran pengguna pada naskah | Sistem tidak lagi membedakan peran, sedangkan 1.3 butir 4 dan 5 masih menyebut tiga peran dan koreksi oleh admin | Revisi 1.3 butir 4 dan 5 agar memakai aturan insight: penulis dan penyunting terakhir tidak menyetujui, perubahan isi menggugurkan persetujuan, insight yang pernah disetujui tidak dapat dihapus |
 
 ---
 
@@ -157,11 +153,15 @@ docker compose exec backend python -m app.seed --reset
 
 ### Akun demo
 
-| Email | Role | Hak akses |
-| --- | --- | --- |
-| `admin@talentpulse.local` | admin | Seluruh fitur + sumber data, taxonomy, koreksi label, audit log |
-| `analyst@talentpulse.local` | analyst | Seluruh dashboard, query, monitor, insight, laporan |
-| `viewer@talentpulse.local` | viewer | Membaca dashboard dan laporan saja |
+| Email |
+| --- |
+| `admin@talentpulse.local` |
+| `analyst@talentpulse.local` |
+| `viewer@talentpulse.local` |
+
+Ketiga akun memiliki akses yang sama. Tiga akun dipertahankan karena insight harus
+disetujui oleh akun selain penulisnya. Seed/reset dan analisis ulang lewat API serta
+antarmuka hanya aktif bila `ENABLE_SYSTEM_OPS=true`; biarkan `false` pada deployment pengujian.
 
 Password demo: nilai `DEMO_PASSWORD` pada `.env` (bawaan `TalentPulse123!`).
 Password ini **hanya untuk development**; ganti sebelum dipakai di lingkungan lain.
@@ -242,7 +242,7 @@ talentpulse/
 
 ## Fitur MVP
 
-1. Login demo dan tiga role (admin/analyst/viewer).
+1. Login demo wajib; role disimpan untuk identitas akun, bukan gerbang fitur UI/API.
 2. Pencarian global dengan operator `AND`, `OR`, `-kata`, dan frasa berkutip.
 3. **Overview** — KPI, volume harian, puncak percakapan, isu yang perlu perhatian.
 4. **Analisis Tren** — granularitas harian/mingguan, perbandingan periode, breakdown.
@@ -255,7 +255,7 @@ talentpulse/
    taxonomy, preset kata kunci, analisis ulang, log proses, audit log, identitas dan warna merek.
 10. **Metodologi & Etika** — sumber data, pengolahan, keterbatasan, landasan teori.
 11. Filter global lintas halaman yang tersimpan pada URL.
-12. State loading, kosong, tanpa hasil, error, izin ditolak, dan data usang.
+12. State loading, kosong, tanpa hasil, error, dan data usang.
 
 Daftar lengkap beserta fitur lanjutan: [`docs/features.md`](docs/features.md).
 
@@ -289,7 +289,7 @@ kali menambah atau menghapus pengujian.
 
 ```bash
 cd apps/api
-pytest                      # KPI, filter, relevansi, role, impor CSV
+pytest                      # KPI, filter, relevansi, aturan insight, impor CSV
 ```
 
 ### Frontend
@@ -320,7 +320,7 @@ cd apps/api && uvicorn app.main:app --port 8000    # terminal terpisah
 npm run e2e                       # dari root: seluruh 20 skenario
 npm run e2e -- usability-tasks    # Tugas 1–5
 npm run e2e -- accessibility      # audit axe-core + keyboard + focus trap
-npm run e2e -- roles-and-data     # pembatasan peran, impor CSV, taxonomy
+npm run e2e -- roles-and-data     # akses setelah login, aturan insight, impor CSV, taxonomy
 npm run e2e -- visual-qa          # screenshot + cek overflow
 ```
 
@@ -356,7 +356,7 @@ Tiga jalur, semuanya melewati pipeline yang sama (deduplikasi → analisis NLP �
 2. **Impor berkas** — tersedia tanpa biaya. Siapkan CSV/JSON dengan kolom
    `external_post_id`, `text`, `created_at_source`, tambahkan kolom
    `is_synthetic` bernilai `false` agar tidak ditandai data demo, lalu unggah di
-   **Data & Pengaturan → Impor data** sebagai admin. Berkas harus berasal dari
+   **Data & Pengaturan → Impor data**. Berkas harus berasal dari
    ekspor resmi atau dataset yang Anda punya dasar izinnya — produk ini tidak
    menyediakan scraping.
 3. **X API resmi** — isi `X_API_BEARER_TOKEN` di environment server, jalankan
@@ -376,8 +376,8 @@ X_API_PROVIDER=twitterapi_io
 TWITTERAPI_IO_KEY=your_key
 ```
 
-Jalankan `docker compose up -d --build backend frontend`, lalu masuk sebagai admin
-ke **Data & Pengaturan**. Pilih 20 post untuk uji pertama (maksimal satu halaman).
+Jalankan `docker compose up -d --build backend frontend`, lalu masuk ke
+**Data & Pengaturan**. Pilih 20 post untuk uji pertama (maksimal satu halaman).
 Batas 50/100 post memakai maksimal 3/5 halaman; hasil dapat lebih sedikit.
 Tidak ada retry otomatis atau pengambilan terjadwal. Setiap pencarian dapat memakai
 kredit provider, termasuk pencarian ulang post yang sudah tersimpan. API key hanya

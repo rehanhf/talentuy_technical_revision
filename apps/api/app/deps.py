@@ -1,20 +1,17 @@
-"""Dependency autentikasi dan otorisasi berbasis role."""
+"""Dependency autentikasi dan kontrol akses berbasis aturan sistem."""
 
 from __future__ import annotations
-
-from collections.abc import Callable
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.models import AuditLog, User
 from app.security import decode_access_token
 
 bearer_scheme = HTTPBearer(auto_error=False)
-
-ROLE_RANK = {"viewer": 1, "analyst": 2, "admin": 3}
 
 
 def get_current_user(
@@ -41,20 +38,13 @@ def get_current_user(
     return user
 
 
-def require_role(minimum: str) -> Callable[[User], User]:
-    def dependency(user: User = Depends(get_current_user)) -> User:
-        if ROLE_RANK.get(user.role, 0) < ROLE_RANK[minimum]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Anda tidak memiliki izin untuk tindakan ini.",
-            )
-        return user
-
-    return dependency
-
-
-require_analyst = require_role("analyst")
-require_admin = require_role("admin")
+def require_system_ops(user: User = Depends(get_current_user)) -> User:
+    if not settings.enable_system_ops:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Operasi sistem dinonaktifkan pada environment ini.",
+        )
+    return user
 
 
 def write_audit(

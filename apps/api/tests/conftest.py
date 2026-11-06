@@ -19,6 +19,7 @@ os.environ["DEMO_PASSWORD"] = "TalentPulse123!"
 os.environ["X_API_PROVIDER"] = "official"
 os.environ["X_API_BEARER_TOKEN"] = ""
 os.environ["TWITTERAPI_IO_KEY"] = ""
+os.environ["ENABLE_SYSTEM_OPS"] = "false"
 
 from fastapi.testclient import TestClient  # noqa: E402
 

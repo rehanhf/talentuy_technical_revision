@@ -21,7 +21,6 @@ import {
   EmptyState,
   ErrorState,
   InlineLoader,
-  PermissionDenied,
   TableSkeleton,
   Tag,
   Toast,
@@ -39,7 +38,6 @@ import {
   useTaxonomy,
   useUpdateTopic,
 } from "@/hooks/useApi";
-import { useAuth } from "@/hooks/useAuth";
 import { ApiError } from "@/lib/api";
 import {
   DEFAULT_BRANDING,
@@ -67,7 +65,6 @@ const ACTION_LABEL: Record<string, string> = {
   "data.fetch_live": "Tarik data X API",
   "taxonomy.update": "Ubah taxonomy",
   "label.correct": "Koreksi label",
-  "label.suggest": "Usulan koreksi label",
   "preset.create": "Tambah preset kata kunci",
   "preset.update": "Ubah preset kata kunci",
   "preset.delete": "Hapus preset kata kunci",
@@ -98,14 +95,12 @@ function QualityStat({
 }
 
 export default function DataSettingsPage() {
-  const { can } = useAuth();
-  const isAdmin = can("admin");
 
   const connectors = useConnectors();
   const quality = useDataQuality();
   const taxonomy = useTaxonomy();
   const runs = useIngestionRuns();
-  const audit = useAuditLog(isAdmin);
+  const audit = useAuditLog();
 
   const importData = useImportData();
   const importPublicX = useImportPublicX();
@@ -389,12 +384,11 @@ export default function DataSettingsPage() {
                 {connectors.data.notice}
               </p>
 
-              {isAdmin && (
-                <form
-                  onSubmit={submitPublicX}
-                  className="space-y-2.5 rounded-lg border border-line p-3"
-                  noValidate
-                >
+              <form
+                onSubmit={submitPublicX}
+                className="space-y-2.5 rounded-lg border border-line p-3"
+                noValidate
+              >
                   <p className="text-sm font-medium text-ink">Impor satu post X publik</p>
                   <p className="text-[11px] leading-relaxed text-muted">
                     Tempel URL post yang sudah diketahui. Teks publik diambil di server,
@@ -434,10 +428,8 @@ export default function DataSettingsPage() {
                     </p>
                   )}
                 </form>
-              )}
 
-              {isAdmin && (
-                <form
+              <form
                   onSubmit={submitFetchLive}
                   className="space-y-2.5 rounded-lg border border-line p-3"
                   noValidate
@@ -537,7 +529,6 @@ export default function DataSettingsPage() {
                     </p>
                   )}
                 </form>
-              )}
             </div>
           ) : null}
         </Card>
@@ -604,7 +595,7 @@ export default function DataSettingsPage() {
           title="Impor data"
           description="Unggah hasil ekspor resmi berformat CSV atau JSON. Berkas diproses di server, bukan di browser."
           actions={
-            isAdmin && (
+            connectors.data?.system_ops_enabled && (
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -630,10 +621,7 @@ export default function DataSettingsPage() {
             )
           }
         >
-          {!isAdmin ? (
-            <PermissionDenied needed="admin" />
-          ) : (
-            <form onSubmit={submitImport} className="space-y-3" noValidate>
+          <form onSubmit={submitImport} className="space-y-3" noValidate>
               <div>
                 <label htmlFor="import-file" className="tp-label">
                   Berkas CSV atau JSON (maks. 8 MB)
@@ -695,7 +683,6 @@ export default function DataSettingsPage() {
                 </div>
               )}
             </form>
-          )}
         </Card>
 
         {/* --------------------------------------------------- taxonomy */}
@@ -728,15 +715,13 @@ export default function DataSettingsPage() {
                       <span className="text-sm font-medium text-ink">{topic.name}</span>
                       {!topic.is_active && <Tag>nonaktif</Tag>}
                     </span>
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        className="text-xs font-medium text-primary hover:underline"
-                        onClick={() => openTopic(topic)}
-                      >
-                        Ubah
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-primary hover:underline"
+                      onClick={() => openTopic(topic)}
+                    >
+                      Ubah
+                    </button>
                   </div>
                   <p className="mt-1 text-[11px] leading-relaxed text-muted">
                     {topic.description}
@@ -757,7 +742,6 @@ export default function DataSettingsPage() {
 
         {/* ------------------------------------------------ preset kata kunci */}
         <KeywordPresetManager
-          isAdmin={isAdmin}
           topics={taxonomy.data?.topics ?? []}
           onToast={setToast}
         />
@@ -998,9 +982,7 @@ export default function DataSettingsPage() {
         description="Jejak impor, analisis ulang, perubahan taxonomy, koreksi label, dan persetujuan insight."
         className="mt-4"
       >
-        {!isAdmin ? (
-          <PermissionDenied needed="admin" />
-        ) : audit.isError ? (
+        {audit.isError ? (
           <ErrorState
             message={
               audit.error instanceof ApiError
@@ -1071,10 +1053,7 @@ export default function DataSettingsPage() {
           </div>
         }
       >
-        {!isAdmin ? (
-          <PermissionDenied needed="admin" />
-        ) : (
-          <form id="form-topik" onSubmit={submitTopic} className="space-y-3" noValidate>
+        <form id="form-topik" onSubmit={submitTopic} className="space-y-3" noValidate>
             <div>
               <label htmlFor="topik-nama" className="tp-label">
                 Nama topik
@@ -1150,7 +1129,6 @@ export default function DataSettingsPage() {
               </label>
             </div>
           </form>
-        )}
       </Drawer>
 
       <ConfirmDialog

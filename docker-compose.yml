@@ -41,6 +41,7 @@ services:
       X_API_PROVIDER: ${X_API_PROVIDER:-official}
       TWITTERAPI_IO_KEY: ${TWITTERAPI_IO_KEY:-}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-TalentPulse123!}
+      ENABLE_SYSTEM_OPS: ${ENABLE_SYSTEM_OPS:-false}
     ports:
       - "${API_PORT:-8000}:8000"
 

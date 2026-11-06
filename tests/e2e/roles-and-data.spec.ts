@@ -3,43 +3,27 @@ import { expect, test } from "@playwright/test";
 import { ensureApiReady, login, openPage } from "./helpers";
 
 /**
- * Cakupan untuk halaman Laporan Insight dan Data & Pengaturan: pembatasan
- * peran, alur impor berkas, dan penyuntingan taxonomy.
+ * Cakupan untuk halaman Laporan Insight dan Data & Pengaturan: alur impor
+ * berkas, penyuntingan taxonomy, dan akses kolaboratif setelah login.
  */
 test.beforeAll(async () => {
   await ensureApiReady();
 });
 
-test("viewer hanya dapat membaca, tanpa aksi yang mengubah data", async ({ page }) => {
+test("viewer dapat mengakses fitur kerja kolaboratif setelah login", async ({ page }) => {
   await login(page, "viewer");
 
-  // Laporan: tidak ada tombol menyusun, tetapi laporan tetap dapat dibaca.
   await openPage(page, "Laporan Insight");
   await expect(page.getByRole("heading", { name: "Laporan Insight" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Susun laporan", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Saran dari data", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Laporan tersimpan" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Susun laporan", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Saran dari data", exact: true })).toBeVisible();
 
-  // Data & Pengaturan: bagian admin diganti penjelasan akses.
   await openPage(page, "Data & Pengaturan");
-  const importCard = page.getByRole("region", { name: "Impor data" });
-  await expect(importCard.getByText("Akses dibatasi")).toBeVisible();
-  await expect(importCard.getByText(/role admin/)).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Audit log" }).getByText("Akses dibatasi"),
-  ).toBeVisible();
+  await expect(page.getByRole("region", { name: "Impor data" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Audit log" })).toBeVisible();
 
-  // Status sumber data dan kualitas data tetap terbaca oleh viewer.
-  await expect(page.getByRole("region", { name: "Status sumber data" })).toContainText(
-    "DATA DEMO",
-  );
-  await expect(page.getByRole("region", { name: "Kualitas data" })).toContainText(
-    "Total post",
-  );
-
-  // monitoring: tidak ada tombol membuat monitor baru.
   await openPage(page, "Monitoring");
-  await expect(page.getByRole("button", { name: "Monitor baru" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Monitor baru" })).toBeVisible();
 });
 
 test("admin mengimpor berkas CSV dan hasilnya tercatat di log proses", async ({ page }) => {
@@ -127,4 +111,16 @@ test("laporan menolak disimpan tanpa insight terpilih", async ({ page }) => {
 
   await expect(builder.getByRole("alert")).toContainText("Pilih minimal satu insight");
   await expect(page.getByRole("dialog", { name: "Pratinjau laporan" })).toHaveCount(0);
+});
+
+test("tombol Setujui nonaktif bagi penulis insight", async ({ page }) => {
+  await login(page, "analyst");
+  await openPage(page, "Laporan Insight");
+
+  await page.getByRole("button", { name: "Saran dari data", exact: true }).click();
+  await page.getByRole("button", { name: "Simpan sebagai draft" }).first().click();
+  await expect(page.getByText("Rekomendasi disimpan sebagai draft")).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await expect(page.getByTitle("Persetujuan harus oleh pengguna lain").first()).toBeDisabled();
 });

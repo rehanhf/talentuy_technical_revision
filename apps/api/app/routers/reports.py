@@ -10,7 +10,7 @@ from app import analytics
 from app.timeutil import utcnow
 from app.config import settings
 from app.database import get_db
-from app.deps import get_current_user, require_analyst, write_audit
+from app.deps import get_current_user, write_audit
 from app.filters import FilterSet, apply_saved_query
 from app.models import Insight, Report, User
 from app.reporting import (
@@ -58,7 +58,7 @@ def list_reports(
 def create_report(
     payload: ReportIn,
     db: Session = Depends(get_db),
-    user: User = Depends(require_analyst),
+    user: User = Depends(get_current_user),
 ) -> ReportOut:
     missing = [
         insight_id
@@ -253,7 +253,7 @@ def export_report(
 
 @router.delete("/{report_id}", status_code=204)
 def delete_report(
-    report_id: str, db: Session = Depends(get_db), user: User = Depends(require_analyst)
+    report_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ) -> Response:
     report = db.get(Report, report_id)
     if report is None:

@@ -7,7 +7,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.deps import ROLE_RANK, get_current_user
+from app.deps import get_current_user
 from app.filters import FilterSet, apply_saved_query, filter_params, filtered_query
 from app.meta import build_meta
 from app.models import Post, PostAnalysis, Topic, User
@@ -19,12 +19,7 @@ router = APIRouter(prefix="/posts", tags=["posts"])
 SORT_OPTIONS = {"relevance", "recent", "engagement"}
 
 
-def _can_see_confidence(user: User) -> bool:
-    """Confidence score hanya untuk admin/analyst (bagian 13 dokumen)."""
-    return ROLE_RANK.get(user.role, 0) >= ROLE_RANK["analyst"]
-
-
-def _to_post_out(row, *, show_confidence: bool) -> PostOut:
+def _to_post_out(row) -> PostOut:
     post: Post = row[0]
     analysis: PostAnalysis = row[1]
     topic: Topic | None = analysis.topic
@@ -51,9 +46,9 @@ def _to_post_out(row, *, show_confidence: bool) -> PostOut:
         needs_review=analysis.needs_review,
         keywords=analysis.keywords or [],
         explanation=analysis.explanation or {},
-        sentiment_confidence=analysis.sentiment_confidence if show_confidence else None,
-        intent_confidence=analysis.intent_confidence if show_confidence else None,
-        model_version=analysis.model_version if show_confidence else None,
+        sentiment_confidence=analysis.sentiment_confidence,
+        intent_confidence=analysis.intent_confidence,
+        model_version=analysis.model_version,
     )
 
 
@@ -64,7 +59,7 @@ def list_posts(
     page_size: int = Query(20, ge=5, le=100),
     filters: FilterSet = Depends(filter_params),
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    _user: User = Depends(get_current_user),
 ) -> PostListResponse:
     if sort not in SORT_OPTIONS:
         raise HTTPException(status_code=422, detail=f"Sort tidak dikenali: {sort}")
@@ -87,10 +82,8 @@ def list_posts(
         )
 
     rows = db.execute(stmt.offset((page - 1) * page_size).limit(page_size)).all()
-    show_confidence = _can_see_confidence(user)
-
     return PostListResponse(
-        items=[_to_post_out(row, show_confidence=show_confidence) for row in rows],
+        items=[_to_post_out(row) for row in rows],
         total=total,
         page=page,
         page_size=page_size,
@@ -104,11 +97,11 @@ def list_posts(
 def get_post(
     post_id: str,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    _user: User = Depends(get_current_user),
 ) -> PostOut:
     post = db.get(Post, post_id)
     if post is None or post.deleted_at is not None:
         raise HTTPException(status_code=404, detail="Post tidak ditemukan.")
     if post.analysis is None:
         raise HTTPException(status_code=409, detail="Post belum dianalisis.")
-    return _to_post_out((post, post.analysis), show_confidence=_can_see_confidence(user))
+    return _to_post_out((post, post.analysis))

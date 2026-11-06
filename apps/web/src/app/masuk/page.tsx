@@ -10,7 +10,6 @@ import { ApiError, apiRequest } from "@/lib/api";
 
 interface DemoAccount {
   email: string;
-  role: string;
   description: string;
 }
 
@@ -210,10 +209,8 @@ export default function LoginPage() {
                       }}
                       className="w-full rounded-md border border-transparent px-2 py-1.5 text-left transition hover:border-line hover:bg-surface"
                     >
-                      <span className="block text-xs font-medium capitalize text-ink">
-                        {account.role}
-                      </span>
-                      <span className="block text-[11px] text-muted">{account.email}</span>
+                      <span className="block text-xs font-medium text-ink">{account.email}</span>
+                      <span className="block text-[11px] text-muted">{account.description}</span>
                     </button>
                   </li>
                 ))}

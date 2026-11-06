@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app import analytics
 from app.timeutil import utcnow
 from app.database import get_db
-from app.deps import get_current_user, require_analyst, write_audit
+from app.deps import get_current_user, write_audit
 from app.filters import FilterSet, apply_saved_query, filtered_query
 from app.models import Monitor, Post, SourceQuery, User
 from app.schemas import (
@@ -64,7 +64,7 @@ def list_queries(
 def create_query(
     payload: SourceQueryIn,
     db: Session = Depends(get_db),
-    user: User = Depends(require_analyst),
+    user: User = Depends(get_current_user),
 ) -> SourceQueryOut:
     query = SourceQuery(**payload.model_dump(), owner_id=user.id)
     db.add(query)
@@ -79,7 +79,7 @@ def update_query(
     query_id: str,
     payload: SourceQueryUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_analyst),
+    user: User = Depends(get_current_user),
 ) -> SourceQueryOut:
     query = db.get(SourceQuery, query_id)
     if query is None:
@@ -95,7 +95,7 @@ def update_query(
 def delete_query(
     query_id: str,
     db: Session = Depends(get_db),
-    user: User = Depends(require_analyst),
+    user: User = Depends(get_current_user),
 ) -> Response:
     query = db.get(SourceQuery, query_id)
     if query is None:
@@ -172,7 +172,7 @@ def list_monitors(
 def create_monitor(
     payload: MonitorIn,
     db: Session = Depends(get_db),
-    user: User = Depends(require_analyst),
+    user: User = Depends(get_current_user),
 ) -> MonitorOut:
     query_id = payload.source_query_id
     if payload.source_query is not None:
@@ -203,7 +203,7 @@ def update_monitor(
     monitor_id: str,
     payload: MonitorUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_analyst),
+    user: User = Depends(get_current_user),
 ) -> MonitorOut:
     monitor = db.get(Monitor, monitor_id)
     if monitor is None:
@@ -219,7 +219,7 @@ def update_monitor(
 def duplicate_monitor(
     monitor_id: str,
     db: Session = Depends(get_db),
-    user: User = Depends(require_analyst),
+    user: User = Depends(get_current_user),
 ) -> MonitorOut:
     source = db.get(Monitor, monitor_id)
     if source is None:

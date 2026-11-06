@@ -269,7 +269,7 @@ export default function HomePage() {
             className="tp-chart-panel"
             title="Topik terbanyak"
             description="Klik batang untuk menambahkan topik ke filter global."
-            definition="Jumlah post per topik. Topik ditentukan dari kecocokan kata kunci taxonomy dan dapat dikoreksi manual oleh admin."
+            definition="Jumlah post per topik. Topik ditentukan dari kecocokan kata kunci taxonomy dan dapat dikoreksi manual oleh pengguna."
           >
             {isLoading || !data ? (
               <ChartSkeleton height={300} />

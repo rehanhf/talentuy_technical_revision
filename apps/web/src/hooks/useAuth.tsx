@@ -12,18 +12,14 @@ import {
 } from "react";
 
 import { ApiError, apiRequest, getToken, setToken } from "@/lib/api";
-import type { Role, User } from "@/lib/types";
+import type { User } from "@/lib/types";
 
 interface AuthState {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  /** Cek hak akses minimum berdasarkan hierarki role. */
-  can: (minimum: Role) => boolean;
 }
-
-const ROLE_RANK: Record<Role, number> = { viewer: 1, analyst: 2, admin: 3 };
 
 const AuthContext = createContext<AuthState | null>(null);
 
@@ -69,14 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/masuk");
   }, [router]);
 
-  const can = useCallback(
-    (minimum: Role) => (user ? ROLE_RANK[user.role] >= ROLE_RANK[minimum] : false),
-    [user],
-  );
-
   const value = useMemo(
-    () => ({ user, isLoading, login, logout, can }),
-    [user, isLoading, login, logout, can],
+    () => ({ user, isLoading, login, logout }),
+    [user, isLoading, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

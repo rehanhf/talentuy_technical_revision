@@ -9,7 +9,6 @@ import {
   EmptyState,
   ErrorState,
   NoResultState,
-  PermissionDenied,
   SentimentBadge,
 } from "@/components/ui";
 
@@ -46,11 +45,6 @@ describe("state wajib halaman", () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
-  it("menjelaskan pembatasan akses berdasarkan role", () => {
-    render(<PermissionDenied needed="admin" />);
-    expect(screen.getByText("Akses dibatasi")).toBeInTheDocument();
-    expect(screen.getByText(/role admin/)).toBeInTheDocument();
-  });
 });
 
 describe("badge", () => {

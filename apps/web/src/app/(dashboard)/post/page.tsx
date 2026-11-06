@@ -28,7 +28,6 @@ import {
   Toast,
 } from "@/components/ui";
 import { useKeywordPresets, usePosts } from "@/hooks/useApi";
-import { useAuth } from "@/hooks/useAuth";
 import { useFilters } from "@/hooks/useFilters";
 import { useReportMeta } from "@/hooks/useMeta";
 import { ApiError } from "@/lib/api";
@@ -42,7 +41,6 @@ const SORT_OPTIONS = [
 ];
 
 export default function PostExplorerPage() {
-  const { can } = useAuth();
   const { apiParams, filters, setFilters, reset } = useFilters();
   const [sort, setSort] = useState("relevance");
   const [page, setPage] = useState(1);
@@ -70,7 +68,7 @@ export default function PostExplorerPage() {
   // Sorotan dasar klasifikasi selalu dimulai dari kata pencarian.
   useEffect(() => setBasisFocus(null), [activePost?.id]);
 
-  // Preset dikelompokkan per kategori isu; admin menyuntingnya di Data & Pengaturan.
+  // Preset dikelompokkan per kategori isu; disunting di Data & Pengaturan.
   const presetGroups = useMemo(() => {
     const groups = new Map<string, { name: string; items: KeywordPreset[] }>();
     for (const preset of presets.data ?? []) {
@@ -82,7 +80,6 @@ export default function PostExplorerPage() {
     return [...groups.values()];
   }, [presets.data]);
 
-  const showConfidence = can("analyst");
   const highlightTerms = useMemo(() => data?.highlight_terms ?? [], [data]);
   const drawerTerms =
     activePost && basisFocus
@@ -343,22 +340,19 @@ export default function PostExplorerPage() {
                   .getElementById("judul-koreksi")
                   ?.scrollIntoView({ behavior: "smooth", block: "center" });
               }}
-              showConfidence={showConfidence}
-              canCorrect={can("analyst")}
+              showConfidence
+              canCorrect
             />
 
-            {can("analyst") && (
-              <LabelCorrection
-                post={activePost}
-                field={correctionField}
-                onFieldChange={setCorrectionField}
-                mode={can("admin") ? "correct" : "suggest"}
-                onDone={({ message, tone, post }) => {
-                  setToast({ message, tone });
-                  if (post) setActivePost(post);
-                }}
-              />
-            )}
+            <LabelCorrection
+              post={activePost}
+              field={correctionField}
+              onFieldChange={setCorrectionField}
+              onDone={({ message, tone, post }) => {
+                setToast({ message, tone });
+                if (post) setActivePost(post);
+              }}
+            />
 
             <section>
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -436,7 +430,7 @@ export default function PostExplorerPage() {
                   merepresentasikan percakapan nyata.
                 </p>
               )}
-              {showConfidence && activePost.model_version && (
+              {activePost.model_version && (
                 <p className="mt-1.5 text-[11px] text-muted">
                   Versi model: {activePost.model_version}
                 </p>

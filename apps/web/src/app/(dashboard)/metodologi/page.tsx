@@ -6,12 +6,10 @@ import { PageHeader } from "@/components/shell";
 import {
   Card,
   ErrorState,
-  PermissionDenied,
   TableSkeleton,
   Tag,
 } from "@/components/ui";
 import { useMethodology, useUsabilitySummary } from "@/hooks/useApi";
-import { useAuth } from "@/hooks/useAuth";
 import { ApiError } from "@/lib/api";
 import { formatDateTime, formatNumber, formatRelative } from "@/lib/format";
 
@@ -99,10 +97,8 @@ const READING_TIPS: Array<{ title: string; body: string }> = [
 ];
 
 export default function MethodologyPage() {
-  const { can } = useAuth();
-  const isAdmin = can("admin");
   const methodology = useMethodology();
-  const usability = useUsabilitySummary(isAdmin);
+  const usability = useUsabilitySummary();
 
   return (
     <>
@@ -280,9 +276,7 @@ export default function MethodologyPage() {
         description="Metrik alur yang tercatat saat dashboard dipakai untuk pengujian. Isi pencarian tidak pernah disimpan — hanya nama filter, jumlah langkah, dan durasi."
         className="mt-4"
       >
-        {!isAdmin ? (
-          <PermissionDenied needed="admin" />
-        ) : usability.isLoading ? (
+        {usability.isLoading ? (
           <TableSkeleton rows={3} />
         ) : usability.isError ? (
           <ErrorState

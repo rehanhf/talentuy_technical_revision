@@ -1,4 +1,4 @@
-"""Uji endpoint API: auth, role, filter, search, monitor, insight, dan ekspor."""
+"""Uji endpoint API: auth, filter, search, monitor, insight, dan ekspor."""
 
 from __future__ import annotations
 
@@ -116,28 +116,41 @@ def test_invalid_sort_is_rejected(client, analyst_headers):
     assert response.status_code == 422
 
 
-def test_confidence_hidden_from_viewer(client, viewer_headers, analyst_headers):
+def test_confidence_visible_for_all_logged_users(client, viewer_headers, analyst_headers):
     viewer_item = client.get(
         "/posts", headers=viewer_headers, params={"page_size": 5}
     ).json()["items"][0]
     analyst_item = client.get(
         "/posts", headers=analyst_headers, params={"page_size": 5}
     ).json()["items"][0]
-    assert viewer_item["sentiment_confidence"] is None
+    assert viewer_item["sentiment_confidence"] is not None
     assert analyst_item["sentiment_confidence"] is not None
 
 
-def test_viewer_cannot_write(client, viewer_headers):
-    response = client.post("/queries", headers=viewer_headers, json={"name": "uji"})
-    assert response.status_code == 403
+def test_viewer_can_write_query(client, viewer_headers):
+    response = client.post(
+        "/queries",
+        headers=viewer_headers,
+        json={
+            "name": "uji",
+            "query_text": "",
+            "include_keywords": ["gaji"],
+            "exclude_keywords": [],
+            "job_roles": [],
+            "topics": [],
+            "sentiments": [],
+            "intents": [],
+        },
+    )
+    assert response.status_code == 201
 
 
-def test_analyst_cannot_read_audit_log(client, analyst_headers):
-    assert client.get("/data/audit", headers=analyst_headers).status_code == 403
+def test_logged_in_user_can_read_audit_log(client, analyst_headers):
+    assert client.get("/data/audit", headers=analyst_headers).status_code == 200
 
 
-def test_admin_can_read_audit_log(client, admin_headers):
-    assert client.get("/data/audit", headers=admin_headers).status_code == 200
+def test_viewer_can_read_audit_log(client, viewer_headers):
+    assert client.get("/data/audit", headers=viewer_headers).status_code == 200
 
 
 def test_saved_query_and_monitor_lifecycle(client, analyst_headers):
@@ -191,7 +204,9 @@ def test_monitor_requires_valid_query(client, analyst_headers):
     assert response.status_code == 422
 
 
-def test_insight_workflow_and_report_export(client, analyst_headers):
+def test_insight_workflow_and_report_export(
+    client, analyst_headers, admin_headers, viewer_headers
+):
     suggestion = client.get(
         "/dashboard/insight-suggestions", headers=analyst_headers
     ).json()["suggestions"][0]
@@ -209,10 +224,17 @@ def test_insight_workflow_and_report_export(client, analyst_headers):
     assert insight["human_status"] == "draft"
     assert insight["is_synthetic_data"] is True
 
+    noted = client.patch(
+        f"/insights/{insight['id']}",
+        headers=viewer_headers,
+        json={"human_note": "Sudah diperiksa."},
+    )
+    assert noted.status_code == 200
+
     reviewed = client.patch(
         f"/insights/{insight['id']}",
-        headers=analyst_headers,
-        json={"human_status": "approved", "human_note": "Sudah diperiksa."},
+        headers=admin_headers,
+        json={"human_status": "approved"},
     ).json()
     assert reviewed["human_status"] == "approved"
 
@@ -267,6 +289,96 @@ def test_report_rejects_unknown_insight(client, analyst_headers):
     assert response.status_code == 422
 
 
+def test_insight_author_cannot_self_approve(client, analyst_headers):
+    suggestion = client.get(
+        "/dashboard/insight-suggestions", headers=analyst_headers
+    ).json()["suggestions"][0]
+    insight = client.post(
+        "/insights",
+        headers=analyst_headers,
+        json={
+            "title": suggestion["title"],
+            "summary": suggestion["summary"],
+            "evidence_filters": suggestion["evidence_filters"],
+            "metric_snapshot": suggestion["metric_snapshot"],
+        },
+    ).json()
+
+    response = client.patch(
+        f"/insights/{insight['id']}", headers=analyst_headers, json={"human_status": "approved"}
+    )
+    assert response.status_code == 403
+
+
+def test_insight_can_be_approved_by_other_user(client, analyst_headers, admin_headers):
+    suggestion = client.get(
+        "/dashboard/insight-suggestions", headers=analyst_headers
+    ).json()["suggestions"][0]
+    insight = client.post(
+        "/insights",
+        headers=analyst_headers,
+        json={
+            "title": suggestion["title"],
+            "summary": suggestion["summary"],
+            "evidence_filters": suggestion["evidence_filters"],
+            "metric_snapshot": suggestion["metric_snapshot"],
+        },
+    ).json()
+
+    response = client.patch(
+        f"/insights/{insight['id']}", headers=admin_headers, json={"human_status": "approved"}
+    )
+    assert response.status_code == 200
+    assert response.json()["human_status"] == "approved"
+
+
+def test_editing_approved_insight_resets_to_draft(client, analyst_headers, admin_headers):
+    suggestion = client.get(
+        "/dashboard/insight-suggestions", headers=analyst_headers
+    ).json()["suggestions"][0]
+    insight = client.post(
+        "/insights",
+        headers=analyst_headers,
+        json={
+            "title": suggestion["title"],
+            "summary": suggestion["summary"],
+            "evidence_filters": suggestion["evidence_filters"],
+            "metric_snapshot": suggestion["metric_snapshot"],
+        },
+    ).json()
+    approved = client.patch(
+        f"/insights/{insight['id']}", headers=admin_headers, json={"human_status": "approved"}
+    ).json()
+    assert approved["human_status"] == "approved"
+
+    edited = client.patch(
+        f"/insights/{insight['id']}", headers=admin_headers, json={"summary": "Ringkasan baru"}
+    ).json()
+    assert edited["human_status"] == "draft"
+
+
+def test_deleting_approved_insight_returns_conflict(client, analyst_headers, admin_headers):
+    suggestion = client.get(
+        "/dashboard/insight-suggestions", headers=analyst_headers
+    ).json()["suggestions"][0]
+    insight = client.post(
+        "/insights",
+        headers=analyst_headers,
+        json={
+            "title": suggestion["title"],
+            "summary": suggestion["summary"],
+            "evidence_filters": suggestion["evidence_filters"],
+            "metric_snapshot": suggestion["metric_snapshot"],
+        },
+    ).json()
+    client.patch(
+        f"/insights/{insight['id']}", headers=admin_headers, json={"human_status": "approved"}
+    )
+
+    response = client.delete(f"/insights/{insight['id']}", headers=admin_headers)
+    assert response.status_code == 409
+
+
 def test_csv_import_validation(client, admin_headers):
     missing_columns = client.post(
         "/data/import", headers=admin_headers, files={"file": ("x.csv", b"a,b\n1,2", "text/csv")}
@@ -288,13 +400,13 @@ def test_csv_import_validation(client, admin_headers):
     assert result["status"] == "partial"
 
 
-def test_import_requires_admin(client, analyst_headers):
+def test_import_is_allowed_for_logged_in_user(client, analyst_headers):
     response = client.post(
         "/data/import",
         headers=analyst_headers,
         files={"file": ("x.csv", b"external_post_id,text,created_at_source\n", "text/csv")},
     )
-    assert response.status_code == 403
+    assert response.status_code == 422
 
 
 def test_import_public_x_validates_url(client, admin_headers):
@@ -347,11 +459,11 @@ def test_import_public_x_ingests_real_post(client, admin_headers, db, monkeypatc
             db.commit()
 
 
-def test_fetch_live_requires_admin(client, analyst_headers):
+def test_fetch_live_is_accessible_for_logged_in_user(client, analyst_headers):
     response = client.post(
         "/data/fetch-live", params={"query": "loker gudang"}, headers=analyst_headers
     )
-    assert response.status_code == 403
+    assert response.status_code in {409, 503, 200}
 
 
 def test_fetch_live_rejected_without_credential(client, admin_headers):
@@ -418,11 +530,21 @@ def test_fetch_live_ingests_real_posts(client, admin_headers, db, monkeypatch):
             db.commit()
 
 
-def test_label_correction_marks_manual_review(client, admin_headers, analyst_headers):
+def test_seed_blocked_when_system_ops_disabled(client, admin_headers):
+    response = client.post("/data/seed", headers=admin_headers)
+    assert response.status_code == 403
+
+
+def test_reanalyze_blocked_when_system_ops_disabled(client, admin_headers):
+    response = client.post("/data/reanalyze", headers=admin_headers)
+    assert response.status_code == 403
+
+
+def test_label_correction_marks_manual_review(client, analyst_headers):
     post = client.get("/posts", headers=analyst_headers, params={"page_size": 5}).json()["items"][0]
     response = client.patch(
         f"/posts/{post['id']}/labels",
-        headers=admin_headers,
+        headers=analyst_headers,
         json={"sentiment_label": "Netral", "topic_slug": "gaji-benefit"},
     )
     assert response.status_code == 200
@@ -434,10 +556,10 @@ def test_label_correction_marks_manual_review(client, admin_headers, analyst_hea
     assert "koreksi-manual" in updated["model_version"]
 
 
-def test_label_correction_rejects_unknown_topic(client, admin_headers, analyst_headers):
+def test_label_correction_rejects_unknown_topic(client, analyst_headers):
     post = client.get("/posts", headers=analyst_headers, params={"page_size": 5}).json()["items"][0]
     response = client.patch(
-        f"/posts/{post['id']}/labels", headers=admin_headers, json={"topic_slug": "tidak-ada"}
+        f"/posts/{post['id']}/labels", headers=analyst_headers, json={"topic_slug": "tidak-ada"}
     )
     assert response.status_code == 422
 
@@ -449,11 +571,11 @@ def test_post_detail_returns_classification_basis(client, viewer_headers):
     assert all(entry["rule"] for entry in detail["explanation"].values())
 
 
-def test_label_correction_records_previous_rule(client, admin_headers, analyst_headers):
+def test_label_correction_records_previous_rule(client, analyst_headers):
     post = client.get("/posts", headers=analyst_headers, params={"page_size": 5}).json()["items"][1]
     auto_rule = post["explanation"]["job_role"]["rule"]
     response = client.patch(
-        f"/posts/{post['id']}/labels", headers=admin_headers, json={"job_role": "Kasir"}
+        f"/posts/{post['id']}/labels", headers=analyst_headers, json={"job_role": "Kasir"}
     )
     assert response.status_code == 200
 
@@ -465,33 +587,24 @@ def test_label_correction_records_previous_rule(client, admin_headers, analyst_h
     assert post["job_role"] in entry["rule"]
 
 
-def test_label_correction_rejects_unknown_job_role(client, admin_headers, analyst_headers):
+def test_label_correction_rejects_unknown_job_role(client, analyst_headers):
     post = client.get("/posts", headers=analyst_headers, params={"page_size": 5}).json()["items"][0]
     response = client.patch(
-        f"/posts/{post['id']}/labels", headers=admin_headers, json={"job_role": "Operator"}
+        f"/posts/{post['id']}/labels", headers=analyst_headers, json={"job_role": "Operator"}
     )
     assert response.status_code == 422
 
 
-def test_label_suggestion_flags_post_for_review(
-    client, admin_headers, analyst_headers, viewer_headers
-):
-    post = client.get("/posts", headers=analyst_headers, params={"page_size": 5}).json()["items"][2]
-    body = {"field": "topic", "suggested_label": "Proses Melamar", "note": "soal interview"}
-
-    denied = client.post(
-        f"/posts/{post['id']}/label-suggestions", headers=viewer_headers, json=body
+def test_viewer_can_correct_labels_directly(client, viewer_headers):
+    post = client.get("/posts", headers=viewer_headers, params={"page_size": 5}).json()["items"][2]
+    response = client.patch(
+        f"/posts/{post['id']}/labels",
+        headers=viewer_headers,
+        json={"needs_review": True, "sentiment_label": "Netral"},
     )
-    assert denied.status_code == 403
-
-    response = client.post(
-        f"/posts/{post['id']}/label-suggestions", headers=analyst_headers, json=body
-    )
-    assert response.status_code == 201
-    assert client.get(f"/posts/{post['id']}", headers=analyst_headers).json()["needs_review"]
-
-    audit = client.get("/data/audit", headers=admin_headers).json()["items"]
-    assert any(e["action"] == "label.suggest" and e["entity_id"] == post["id"] for e in audit)
+    assert response.status_code == 200
+    updated = client.get(f"/posts/{post['id']}", headers=viewer_headers).json()
+    assert updated["needs_review"] is True
 
 
 def test_keyword_presets_seeded_for_every_topic(client, viewer_headers):
@@ -508,14 +621,9 @@ def test_keyword_preset_query_returns_posts(client, viewer_headers):
     assert result.json()["total"] > 0
 
 
-def test_keyword_preset_crud_is_admin_only(client, admin_headers, analyst_headers):
+def test_keyword_preset_crud_for_logged_in_users(client, admin_headers, analyst_headers):
     body = {"topic_slug": "gaji-benefit", "label": "Uji preset", "query_text": "bonus OR insentif"}
-    assert (
-        client.post("/data/keyword-presets", headers=analyst_headers, json=body).status_code
-        == 403
-    )
-
-    created = client.post("/data/keyword-presets", headers=admin_headers, json=body)
+    created = client.post("/data/keyword-presets", headers=analyst_headers, json=body)
     assert created.status_code == 201
     preset_id = created.json()["id"]
 
@@ -533,7 +641,7 @@ def test_keyword_preset_crud_is_admin_only(client, admin_headers, analyst_header
     assert bad.status_code == 422
 
     assert (
-        client.delete(f"/data/keyword-presets/{preset_id}", headers=admin_headers).status_code
+        client.delete(f"/data/keyword-presets/{preset_id}", headers=analyst_headers).status_code
         == 204
     )
     actions = {e["action"] for e in client.get("/data/audit", headers=admin_headers).json()["items"]}
@@ -583,7 +691,7 @@ def test_data_quality_reports_synthetic_share(client, analyst_headers):
     assert body["synthetic_percent"] > 0
 
 
-def test_usability_event_logging_is_privacy_preserving(client, analyst_headers, admin_headers):
+def test_usability_event_logging_is_privacy_preserving(client, analyst_headers):
     response = client.post(
         "/usability/events",
         headers=analyst_headers,
@@ -597,5 +705,224 @@ def test_usability_event_logging_is_privacy_preserving(client, analyst_headers, 
         },
     )
     assert response.status_code == 201
-    summary = client.get("/usability/summary", headers=admin_headers).json()
+    summary = client.get("/usability/summary", headers=analyst_headers).json()
     assert any(item["task_code"] == "T1" for item in summary["items"])
+
+
+def _create_insight(client, headers) -> dict:
+    response = client.post(
+        "/insights", headers=headers, json={"title": "Uji aturan", "summary": "Ringkasan awal"}
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def _patch(client, insight_id, headers, body):
+    return client.patch(f"/insights/{insight_id}", headers=headers, json=body)
+
+
+def _audit_detail(client, headers, insight_id) -> dict:
+    items = client.get("/data/audit", headers=headers, params={"limit": 200}).json()["items"]
+    entry = next(
+        e for e in items if e["action"] == "insight.update" and e["entity_id"] == insight_id
+    )
+    return entry["detail"]
+
+
+def test_edit_and_approve_in_one_request_is_rejected(client, analyst_headers, admin_headers):
+    insight = _create_insight(client, analyst_headers)
+    response = _patch(
+        client, insight["id"], admin_headers, {"summary": "Isi diubah", "human_status": "approved"}
+    )
+    assert response.status_code == 422
+    assert _patch(client, insight["id"], admin_headers, {}).json()["human_status"] == "draft"
+
+
+def test_withdrawn_approval_still_blocks_delete(client, analyst_headers, admin_headers):
+    insight = _create_insight(client, analyst_headers)
+    approved = _patch(client, insight["id"], admin_headers, {"human_status": "approved"}).json()
+    assert approved["first_approved_at"] is not None
+
+    withdrawn = _patch(client, insight["id"], analyst_headers, {"human_status": "draft"}).json()
+    assert withdrawn["human_status"] == "draft"
+    assert withdrawn["first_approved_at"] == approved["first_approved_at"]
+    assert client.delete(f"/insights/{insight['id']}", headers=analyst_headers).status_code == 409
+
+
+def test_edited_approved_insight_still_blocks_delete(client, analyst_headers, admin_headers):
+    insight = _create_insight(client, analyst_headers)
+    _patch(client, insight["id"], admin_headers, {"human_status": "approved"})
+    edited = _patch(client, insight["id"], analyst_headers, {"summary": "Isi diubah"}).json()
+    assert edited["human_status"] == "draft"
+    assert client.delete(f"/insights/{insight['id']}", headers=analyst_headers).status_code == 409
+
+
+def test_last_editor_cannot_approve_but_third_user_can(
+    client, analyst_headers, admin_headers, viewer_headers
+):
+    insight = _create_insight(client, analyst_headers)
+    edited = _patch(client, insight["id"], admin_headers, {"summary": "Disunting B"}).json()
+    me = client.get("/auth/me", headers=admin_headers).json()
+    assert edited["last_edited_by"] == me["id"]
+
+    by_editor = _patch(client, insight["id"], admin_headers, {"human_status": "approved"})
+    assert by_editor.status_code == 403
+
+    by_third = _patch(client, insight["id"], viewer_headers, {"human_status": "approved"})
+    assert by_third.status_code == 200
+    assert by_third.json()["human_status"] == "approved"
+
+
+def test_approval_audit_entry_has_snapshot(client, analyst_headers, admin_headers):
+    insight = _create_insight(client, analyst_headers)
+    _patch(client, insight["id"], admin_headers, {"human_status": "approved"})
+
+    detail = _audit_detail(client, admin_headers, insight["id"])
+    assert detail["approved_snapshot"]["summary"] == "Ringkasan awal"
+    assert detail["approved_snapshot"]["title"] == "Uji aturan"
+
+
+def test_edit_audit_entry_has_previous_values(client, analyst_headers, admin_headers):
+    insight = _create_insight(client, analyst_headers)
+    _patch(client, insight["id"], admin_headers, {"summary": "Isi baru"})
+
+    detail = _audit_detail(client, admin_headers, insight["id"])
+    assert detail["before"] == {"summary": "Ringkasan awal"}
+    assert detail["changes"]["summary"] == "Isi baru"
+
+
+def test_insight_seeded_as_approved_cannot_be_deleted(client, admin_headers, db):
+    from app.models import Insight
+
+    seeded = Insight(title="Disetujui sebelum migration", human_status="approved")
+    db.add(seeded)
+    db.commit()
+    assert seeded.first_approved_at is None
+
+    assert client.delete(f"/insights/{seeded.id}", headers=admin_headers).status_code == 409
+
+
+def test_insight_cannot_be_created_as_approved(client, analyst_headers):
+    response = client.post(
+        "/insights", headers=analyst_headers, json={"title": "x", "human_status": "approved"}
+    )
+    assert response.status_code == 403
+
+
+def test_resending_same_content_keeps_approval(client, analyst_headers, admin_headers):
+    insight = _create_insight(client, analyst_headers)
+    client.patch(
+        f"/insights/{insight['id']}", headers=admin_headers, json={"human_status": "approved"}
+    )
+
+    same = client.patch(
+        f"/insights/{insight['id']}", headers=admin_headers, json={"summary": insight["summary"]}
+    ).json()
+    assert same["human_status"] == "approved"
+
+
+def test_draft_insight_can_be_deleted_by_another_user(client, analyst_headers, viewer_headers):
+    insight = _create_insight(client, analyst_headers)
+    response = client.delete(f"/insights/{insight['id']}", headers=viewer_headers)
+    assert response.status_code == 204
+
+
+def test_insight_exposes_author_id(client, analyst_headers):
+    me = client.get("/auth/me", headers=analyst_headers).json()
+    assert _create_insight(client, analyst_headers)["created_by"] == me["id"]
+
+
+def test_system_ops_flag_is_exposed_and_opens_the_gate(client, viewer_headers, monkeypatch):
+    from app.config import settings
+    from app.deps import require_system_ops
+
+    off = client.get("/data/connectors", headers=viewer_headers).json()
+    assert off["system_ops_enabled"] is False
+
+    monkeypatch.setattr(settings, "enable_system_ops", True)
+    on = client.get("/data/connectors", headers=viewer_headers).json()
+    assert on["system_ops_enabled"] is True
+    user = object()
+    assert require_system_ops(user) is user
+
+
+def test_label_correction_names_the_corrector(client, viewer_headers):
+    post = client.get("/posts", headers=viewer_headers, params={"page_size": 5}).json()["items"][3]
+    me = client.get("/auth/me", headers=viewer_headers).json()
+    target = "Kasir" if post["job_role"] != "Kasir" else "Administrasi"
+    client.patch(f"/posts/{post['id']}/labels", headers=viewer_headers, json={"job_role": target})
+
+    updated = client.get(f"/posts/{post['id']}", headers=viewer_headers).json()
+    assert me["name"] in updated["explanation"]["job_role"]["rule"]
+
+
+def test_review_comment_keeps_right_to_approve(client, analyst_headers, admin_headers):
+    insight = _create_insight(client, analyst_headers)
+    commented = _patch(client, insight["id"], admin_headers, {"review_comment": "Cek angka Q3."})
+    assert commented.status_code == 200
+    assert commented.json()["review_comment"] == "Cek angka Q3."
+    assert commented.json()["last_edited_by"] is None
+
+    approved = _patch(client, insight["id"], admin_headers, {"human_status": "approved"})
+    assert approved.status_code == 200
+
+
+def test_review_comment_does_not_reset_approval(client, analyst_headers, admin_headers):
+    insight = _create_insight(client, analyst_headers)
+    _patch(client, insight["id"], admin_headers, {"human_status": "approved"})
+
+    commented = _patch(
+        client, insight["id"], analyst_headers, {"review_comment": "Catatan setelah disetujui."}
+    ).json()
+    assert commented["human_status"] == "approved"
+    assert commented["last_edited_by"] is None
+
+
+def test_review_comment_and_approval_in_one_request(client, analyst_headers, admin_headers):
+    insight = _create_insight(client, analyst_headers)
+    response = _patch(
+        client, insight["id"], admin_headers, {"review_comment": "OK", "human_status": "approved"}
+    )
+    assert response.status_code == 200
+
+
+def test_review_comment_author_is_audited(client, analyst_headers, viewer_headers):
+    insight = _create_insight(client, analyst_headers)
+    _patch(client, insight["id"], viewer_headers, {"review_comment": "Komentar viewer"})
+
+    items = client.get("/data/audit", headers=viewer_headers, params={"limit": 200}).json()["items"]
+    entry = next(
+        e for e in items if e["action"] == "insight.update" and e["entity_id"] == insight["id"]
+    )
+    assert entry["detail"]["changes"]["review_comment"] == "Komentar viewer"
+    assert entry["actor_email"] == "viewer@talentpulse.local"
+
+
+def test_review_comment_is_never_exported(client, analyst_headers, admin_headers):
+    marker = "RAHASIA-KOMENTAR-PENINJAU"
+    insight = _create_insight(client, analyst_headers)
+    _patch(client, insight["id"], admin_headers, {"review_comment": marker})
+
+    end = datetime.utcnow()
+    report = client.post(
+        "/reports",
+        headers=analyst_headers,
+        json={
+            "title": "Laporan komentar",
+            "period_start": (end - timedelta(days=30)).isoformat(),
+            "period_end": end.isoformat(),
+            "insight_ids": [insight["id"]],
+            "charts": ["volume"],
+        },
+    ).json()
+
+    preview = client.get(f"/reports/{report['id']}/preview", headers=analyst_headers)
+    assert preview.status_code == 200
+    assert marker not in preview.text
+    assert "review_comment" not in preview.text
+    for fmt in ("csv", "pdf", "posts"):
+        exported = client.get(
+            f"/reports/{report['id']}/export", headers=analyst_headers, params={"format": fmt}
+        )
+        assert exported.status_code == 200
+        assert marker.encode() not in exported.content

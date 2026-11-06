@@ -285,9 +285,14 @@ export interface Insight {
   human_note: string;
   evidence_filters: Record<string, unknown>;
   metric_snapshot: Record<string, unknown>;
+  /** Komentar peninjau; bukan isi insight dan tidak diekspor. */
+  review_comment: string;
   human_status: HumanStatus;
   is_synthetic_data: boolean;
   author_name: string | null;
+  created_by: string | null;
+  last_edited_by: string | null;
+  first_approved_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -357,6 +362,7 @@ export interface ConnectorsResponse {
   requested_mode: string;
   live_available: boolean;
   connectors: ConnectorStatus[];
+  system_ops_enabled: boolean;
   notice: string;
 }
 

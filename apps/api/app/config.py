@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     seed_random_state: int = 20260828
 
     demo_password: str = "TalentPulse123!"
+    enable_system_ops: bool = False
 
     @property
     def cors_origin_list(self) -> list[str]:

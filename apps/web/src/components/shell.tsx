@@ -119,7 +119,7 @@ export function Sidebar({
       <div className={cn("flex items-center justify-between gap-3 px-5 py-7", collapsed && "flex-col px-2")}>
         <Link
           href={filterQuery ? `/?${filterQuery}` : "/"}
-          aria-label="TID - Beranda"
+          aria-label="TalentPulse - Beranda"
           title="Beranda"
           aria-current={pathname === "/" ? "page" : undefined}
           className="flex items-center gap-2.5 text-white"
@@ -129,7 +129,7 @@ export function Sidebar({
             <BrandMark className="h-6 w-6" />
           </span>
           {!collapsed && (
-            <span className="text-2xl font-semibold tracking-[-0.04em]">TID<span className="mt-1 block text-[10px] font-normal leading-relaxed tracking-normal text-slate-400">Talent Intelegence<br />Dashboard</span></span>
+            <span className="text-xl font-semibold tracking-[-0.04em]">TalentPulse</span>
           )}
         </Link>
         <button

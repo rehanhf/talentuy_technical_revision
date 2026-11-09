@@ -107,7 +107,7 @@ Keputusan arsitektur informasi yang paling patut dibela di sidang (`docs/informa
 | `/post` | "Apa yang sebenarnya mereka tulis?" | Pencarian boolean, pengurutan relevansi/terbaru/engagement, paginasi, penyorotan istilah, panel detail post |
 | `/monitoring` | "Bagaimana isu ini berkembang minggu depan?" | Daftar monitor, tren 7 hari, perubahan antar periode, buka di dashboard, duplikat, arsip |
 | `/laporan` | "Apa yang saya laporkan ke atasan?" | Saran insight dari data, alur draft → ditinjau → disetujui, catatan peninjau, penyusun laporan, pratinjau, ekspor PDF/CSV/Post ID |
-| `/data` | "Dari mana datanya?" | Status connector, kualitas data, impor CSV/JSON, analisis ulang, bangkitkan data demo, taxonomy topik, kamus istilah, log proses, audit log, identitas dan warna merek |
+| `/data` | "Dari mana datanya?" | Status connector, kualitas data, impor CSV/JSON, analisis ulang, bangkitkan data demo, taxonomy topik, kamus istilah, log proses, audit log |
 | `/metodologi` | "Seberapa bisa dipercaya?" | Sumber dan pengolahan data, etika, keterbatasan, cara membaca dashboard, pemetaan Ellis dan Information Foraging, ringkasan usability |
 
 Halaman `/masuk` (login, publik). Total halaman dashboard 4.333 LOC; `apps/web/src` non-test 8.588 LOC. `next build` menghasilkan 11 rute (8 dashboard + login + error + not-found + root redirect).
@@ -136,9 +136,9 @@ Hierarki `viewer < analyst < admin`. JWT berlaku 12 jam. Nilai keyakinan model h
 
 | Peran | Hak | Akun demo |
 |---|---|---|
-| **Admin** | Kelola data source; import & re-run analysis; kelola taxonomy topik; koreksi label; kelola pengguna; lihat audit log | `admin@talentpulse.local` — Rani Prameswari |
-| **Analyst** | Seluruh dashboard; buat query, monitor, insight, report; hanya boleh menyunting insight miliknya sendiri | `analyst@talentpulse.local` — Dimas Anugrah |
-| **Viewer** | Baca dashboard & laporan termasuk ekspor; tidak dapat mengubah data atau taxonomy | `viewer@talentpulse.local` — Sinta Larasati |
+| **Admin** | Kelola data source; import & re-run analysis; kelola taxonomy topik; koreksi label; kelola pengguna; lihat audit log | `rani@talentpulse.local` — Rani Prameswari |
+| **Analyst** | Seluruh dashboard; buat query, monitor, insight, report; hanya boleh menyunting insight miliknya sendiri | `dimas@talentpulse.local` — Dimas Anugrah |
+| **Viewer** | Baca dashboard & laporan termasuk ekspor; tidak dapat mengubah data atau taxonomy | `sinta@talentpulse.local` — Sinta Larasati |
 
 ### Tiga alur pengguna terdokumentasi
 
@@ -311,8 +311,6 @@ Tiga proses: Next.js (browser) ⇄ HTTP/JSON + JWT Bearer ⇄ FastAPI ⇄ SQL �
 | `--tp-warning` | `#f59e0b` | Data demo, "Tidak Yakin", lonjakan |
 | `--tp-negative` | `#dc2626` | Sentimen negatif, destruktif |
 | `--tp-neutral` | `#64748b` | Sentimen netral |
-
-Warna utama dapat diganti pengguna lewat **Data & Pengaturan → Identitas dan warna merek**; `applyBranding()` menulis ulang 3 token primary.
 
 **Prinsip khas:** "Sentimen tidak pernah dibedakan hanya lewat warna: setiap badge memuat teks label dan simbol (▲ ● ▼ ?)." · kontras teks ≥ 4,5:1 · warna topik disimpan per topik di basis data agar konsisten antar grafik · angka format Indonesia (`1.245`, persen 1 desimal, koma desimal).
 

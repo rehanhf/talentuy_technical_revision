@@ -8,6 +8,17 @@ import { ApiError } from "@/lib/api";
 const replace = vi.fn();
 const login = vi.fn();
 
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
+  return {
+    ...actual,
+    apiRequest: vi.fn(async () => ({
+      accounts: [{ name: "Rani Prameswari", email: "rani@talentpulse.local" }],
+      password: "TalentPulse123!",
+    })),
+  };
+});
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace, push: vi.fn() }),
 }));
@@ -27,19 +38,6 @@ vi.mock("@/hooks/useAuth", async () => {
   };
 });
 
-vi.mock("@/lib/api", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
-  return {
-    ...actual,
-    apiRequest: vi.fn(async () => ({
-      accounts: [
-        { email: "admin@talentpulse.local", description: "Kelola data" },
-      ],
-      password: "TalentPulse123!",
-    })),
-  };
-});
-
 describe("halaman masuk", () => {
   beforeEach(() => {
     replace.mockClear();
@@ -49,13 +47,11 @@ describe("halaman masuk", () => {
   it("menyatakan status prototipe dan data sintetis", async () => {
     render(<LoginPage />);
     expect(screen.getByText(/prototipe internal/i)).toBeInTheDocument();
-    // Tunggu daftar akun demo selesai dimuat agar tidak ada update tertunda.
-    await screen.findByText("admin@talentpulse.local");
   });
 
   it("menolak pengiriman tanpa kata sandi", async () => {
     render(<LoginPage />);
-    await screen.findByText("admin@talentpulse.local");
+    await userEvent.type(screen.getByLabelText("Email"), "dimas@talentpulse.local");
     await userEvent.click(screen.getByRole("button", { name: "Masuk" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Kata sandi wajib diisi.");
@@ -66,17 +62,19 @@ describe("halaman masuk", () => {
     login.mockResolvedValue(undefined);
     render(<LoginPage />);
 
+    await userEvent.type(screen.getByLabelText("Email"), "dimas@talentpulse.local");
     await userEvent.type(screen.getByLabelText("Kata sandi"), "TalentPulse123!");
     await userEvent.click(screen.getByRole("button", { name: "Masuk" }));
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
-    expect(login).toHaveBeenCalledWith("analyst@talentpulse.local", "TalentPulse123!");
+    expect(login).toHaveBeenCalledWith("dimas@talentpulse.local", "TalentPulse123!");
   });
 
   it("menampilkan pesan Bahasa Indonesia saat kredensial salah", async () => {
     login.mockRejectedValue(new ApiError(401, "Email atau kata sandi salah."));
     render(<LoginPage />);
 
+    await userEvent.type(screen.getByLabelText("Email"), "dimas@talentpulse.local");
     await userEvent.type(screen.getByLabelText("Kata sandi"), "salah");
     await userEvent.click(screen.getByRole("button", { name: "Masuk" }));
 
@@ -86,11 +84,27 @@ describe("halaman masuk", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it("mengisi formulir dari daftar akun demo", async () => {
+  it("mengisi email dan kata sandi dari akun demo bernama, tanpa label peran", async () => {
     render(<LoginPage />);
-    const demoButton = await screen.findByText("admin@talentpulse.local");
+    expect(screen.getByLabelText("Email")).toHaveValue("");
 
-    await userEvent.click(demoButton);
-    expect(screen.getByLabelText("Email")).toHaveValue("admin@talentpulse.local");
+    await userEvent.click(await screen.findByText("Rani Prameswari"));
+    expect(screen.getByLabelText("Email")).toHaveValue("rani@talentpulse.local");
+    expect(screen.getByLabelText("Kata sandi")).toHaveValue("TalentPulse123!");
+    expect(screen.queryByText(/admin|analyst|viewer/i)).not.toBeInTheDocument();
+  });
+
+  it("menampilkan cara kerja dasbor", async () => {
+    render(<LoginPage />);
+    for (const step of ["Himpun", "Kelompokkan", "Deteksi", "Tindak lanjuti"]) {
+      expect(screen.getByText(step)).toBeInTheDocument();
+    }
+    await screen.findByText("Rani Prameswari");
+  });
+
+  it("menampilkan nama TalentPulse", async () => {
+    render(<LoginPage />);
+    expect(screen.getAllByText("TalentPulse").length).toBeGreaterThan(0);
+    await screen.findByText("Rani Prameswari");
   });
 });

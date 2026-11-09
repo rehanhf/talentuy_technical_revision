@@ -3,9 +3,9 @@ import { expect, type Page } from "@playwright/test";
 export const API_URL = process.env.E2E_API_URL ?? "http://localhost:8000";
 
 export const ACCOUNTS = {
-  admin: "admin@talentpulse.local",
-  analyst: "analyst@talentpulse.local",
-  viewer: "viewer@talentpulse.local",
+  admin: "rani@talentpulse.local",
+  analyst: "dimas@talentpulse.local",
+  viewer: "sinta@talentpulse.local",
 } as const;
 
 export const DEMO_PASSWORD = process.env.E2E_DEMO_PASSWORD ?? "TalentPulse123!";

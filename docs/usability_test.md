@@ -18,7 +18,7 @@ sosial.
 
 1. Jalankan aplikasi dan pastikan dataset demo terisi:
    `docker compose exec backend python -m app.seed --reset`.
-2. Login dengan akun `analyst@talentpulse.local` (kecuali Tugas 5 memerlukan admin).
+2. Login dengan akun `dimas@talentpulse.local`.
 3. Reset filter ke bawaan sebelum setiap peserta.
 4. Siapkan pencatatan: waktu per tugas, jumlah langkah, jumlah kesalahan.
 5. Sampaikan bahwa **data bersifat sintetis** dan yang diuji adalah produk,

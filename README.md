@@ -153,11 +153,15 @@ docker compose exec backend python -m app.seed --reset
 
 ### Akun demo
 
-| Email |
-| --- |
-| `admin@talentpulse.local` |
-| `analyst@talentpulse.local` |
-| `viewer@talentpulse.local` |
+| Nama | Email |
+| --- | --- |
+| Rani Prameswari | `rani@talentpulse.local` |
+| Dimas Anugrah | `dimas@talentpulse.local` |
+| Sinta Larasati | `sinta@talentpulse.local` |
+
+Di luar `ENVIRONMENT=production`, halaman masuk menampilkan ketiga nama ini; klik
+salah satunya untuk mengisi email dan kata sandi. Database lama ikut diperbarui oleh
+migration `f2b8d4e6a1c3` (`admin@` → `rani@`, `analyst@` → `dimas@`, `viewer@` → `sinta@`).
 
 Ketiga akun memiliki akses yang sama. Tiga akun dipertahankan karena insight harus
 disetujui oleh akun selain penulisnya. Seed/reset dan analisis ulang lewat API serta
@@ -252,7 +256,7 @@ talentpulse/
 7. **Monitoring** — query tersimpan, tren 7 hari, duplikat/arsip.
 8. **Laporan Insight** — alur draft → ditinjau → disetujui, ekspor PDF/CSV agregat.
 9. **Data & Pengaturan** — status connector, impor URL post X atau CSV/JSON, kualitas data,
-   taxonomy, preset kata kunci, analisis ulang, log proses, audit log, identitas dan warna merek.
+   taxonomy, preset kata kunci, analisis ulang, log proses, audit log.
 10. **Metodologi & Etika** — sumber data, pengolahan, keterbatasan, landasan teori.
 11. Filter global lintas halaman yang tersimpan pada URL.
 12. State loading, kosong, tanpa hasil, error, dan data usang.
@@ -378,6 +382,10 @@ TWITTERAPI_IO_KEY=your_key
 
 Jalankan `docker compose up -d --build backend frontend`, lalu masuk ke
 **Data & Pengaturan**. Pilih 20 post untuk uji pertama (maksimal satu halaman).
+Lima Template Keyword (alih daya umum, upah dan potongan, BPJS dan administrasi,
+kontrak dan penempatan, rekrutmen bermasalah) mengisi kotak kueri tanpa menarik data;
+penarikan tetap dimulai lewat tombol **Tarik data**. Daftarnya ada di
+`apps/web/src/lib/fetch-templates.ts`.
 Batas 50/100 post memakai maksimal 3/5 halaman; hasil dapat lebih sedikit.
 Tidak ada retry otomatis atau pengambilan terjadwal. Setiap pencarian dapat memakai
 kredit provider, termasuk pencarian ulang post yang sudah tersimpan. API key hanya

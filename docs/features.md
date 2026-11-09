@@ -29,7 +29,7 @@
 | Pencarian Post | Pencarian, preset kata kunci per kategori isu, pengurutan relevansi/terbaru/engagement, paginasi, penyorotan istilah, panel detail post dengan dasar klasifikasi tiap label dan koreksi langsung |
 | Monitoring | Daftar monitor, tren 7 hari, perubahan antar periode, buka di dashboard, duplikat, arsip |
 | Laporan Insight | Saran insight dari data, alur draft → ditinjau → disetujui, catatan peninjau, penyusun laporan, pratinjau, ekspor PDF/CSV/Post ID |
-| Data & Pengaturan | Status connector, kualitas data, impor CSV/JSON, analisis ulang, bangkitkan data demo, taxonomy topik, preset kata kunci, kamus istilah, log proses, audit log, identitas dan warna merek |
+| Data & Pengaturan | Status connector, kualitas data, impor CSV/JSON, analisis ulang, bangkitkan data demo, taxonomy topik, preset kata kunci, kamus istilah, log proses, audit log |
 | Metodologi & Etika | Sumber dan pengolahan data, etika, keterbatasan, cara membaca dashboard, pemetaan Ellis dan Information Foraging, ringkasan usability |
 
 ### Data dan pengolahan

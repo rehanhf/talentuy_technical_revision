@@ -13,7 +13,7 @@ dan berlaku 12 jam (`JWT_EXPIRE_MINUTES`).
 | --- | --- | --- | --- |
 | POST | `/auth/login` | – | Body `{ "email", "password" }` → `{ access_token, user }` |
 | GET | `/auth/me` | login | Profil pengguna aktif |
-| GET | `/auth/demo-accounts` | – | Daftar akun demo (hanya mode development) |
+| GET | `/auth/demo-accounts` | – | Nama dan email akun demo serta kata sandi demo; 404 bila `ENVIRONMENT=production` |
 
 Seluruh pengguna login memiliki akses yang sama; kolom `users.role` tidak dipakai untuk otorisasi.
 

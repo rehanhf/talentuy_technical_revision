@@ -1,10 +1,9 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { ApiError } from "@/lib/api";
-import { applyBranding, loadBranding } from "@/lib/branding";
 import { AuthProvider } from "@/hooks/useAuth";
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -25,11 +24,6 @@ export function Providers({ children }: { children: ReactNode }) {
         },
       }),
   );
-
-  // Warna merek yang disimpan pengguna diterapkan sebelum halaman digambar.
-  useEffect(() => {
-    applyBranding(loadBranding());
-  }, []);
 
   return (
     <QueryClientProvider client={client}>

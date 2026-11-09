@@ -26,11 +26,6 @@ ditulis sebagai **kanal RGB tanpa fungsi `rgb()`** agar modifier opacity Tailwin
 | `--tp-negative` | `220 38 38` | `#dc2626` | Sentimen negatif, aksi destruktif |
 | `--tp-neutral` | `100 116 139` | `#64748b` | Sentimen netral |
 
-Warna utama dapat diganti pengguna melalui **Data & Pengaturan → Identitas dan
-warna merek**. `applyBranding()` menulis ulang `--tp-primary`, `--tp-primary-soft`,
-dan `--tp-primary-strong`, sehingga seluruh komponen ikut berubah tanpa perubahan
-kode.
-
 ### Aturan warna
 
 - Sentimen tidak pernah dibedakan hanya lewat warna: setiap badge memuat teks

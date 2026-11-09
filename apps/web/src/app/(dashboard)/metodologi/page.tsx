@@ -188,7 +188,7 @@ export default function MethodologyPage() {
               ))}
             </ul>
             <p className="mt-3 rounded-lg border border-warning/25 bg-warning/5 px-3 py-2 text-[11px] leading-relaxed text-ink">
-              TID (Talent Intelegence Dashboard) adalah media informasi pendukung komunikasi rekrutmen. Produk ini
+              TalentPulse adalah media informasi pendukung komunikasi rekrutmen. Produk ini
               bukan sistem seleksi, bukan alat penilaian kandidat, dan tidak berafiliasi
               resmi dengan X.
             </p>
@@ -230,7 +230,7 @@ export default function MethodologyPage() {
         <div className="tp-scroll-x">
           <table className="w-full min-w-[640px] text-xs">
             <caption className="sr-only">
-              Pemetaan tahap Ellis terhadap fitur TID
+              Pemetaan tahap Ellis terhadap fitur TalentPulse
             </caption>
             <thead>
               <tr className="border-b border-line text-left text-muted">

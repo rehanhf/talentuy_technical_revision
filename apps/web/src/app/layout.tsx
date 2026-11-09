@@ -13,8 +13,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "TID — Talent Intelegence Dashboard",
-    template: "%s · TID",
+    default: "TalentPulse",
+    template: "%s · TalentPulse",
   },
   description:
     "Dashboard internal untuk mengeksplorasi percakapan publik pencari kerja dan mendukung komunikasi rekrutmen yang lebih jelas.",

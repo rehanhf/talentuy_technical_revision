@@ -45,19 +45,23 @@ def me(user: User = Depends(get_current_user)) -> UserOut:
 
 
 @router.get("/demo-accounts")
-def demo_accounts() -> dict:
-    """Daftar akun demo. Hanya diaktifkan pada environment non-produksi."""
+def demo_accounts(db: Session = Depends(get_db)) -> dict:
+    """Akun demo untuk presentasi. Tidak tersedia pada environment produksi."""
     if settings.environment == "production":
         raise HTTPException(status_code=404, detail="Tidak tersedia.")
+    from app.seed import DEMO_USERS
+
+    emails = [email for _, email, _ in DEMO_USERS]
+    users = db.scalars(
+        select(User).where(User.email.in_(emails), User.is_active.is_(True))
+    ).all()
+    by_email = {user.email: user for user in users}
     return {
         "accounts": [
-            {"email": "admin@talentpulse.local", "role": "admin",
-             "description": "Akun demo. Insight harus disetujui akun lain."},
-            {"email": "analyst@talentpulse.local", "role": "analyst",
-             "description": "Akun demo. Insight harus disetujui akun lain."},
-            {"email": "viewer@talentpulse.local", "role": "viewer",
-             "description": "Akun demo. Insight harus disetujui akun lain."},
+            {"name": by_email[email].name, "email": email}
+            for email in emails
+            if email in by_email
         ],
         "password": settings.demo_password,
-        "notice": "Kredensial ini hanya untuk lingkungan pengembangan.",
+        "notice": "Kredensial ini hanya untuk demo dan presentasi.",
     }

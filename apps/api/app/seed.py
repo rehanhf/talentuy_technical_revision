@@ -36,9 +36,9 @@ from app.security import hash_password
 from app.taxonomy import KEYWORD_PRESET_SEED, TOPIC_SEED
 
 DEMO_USERS = [
-    ("Rani Prameswari", "admin@talentpulse.local", "admin"),
-    ("Dimas Anugrah", "analyst@talentpulse.local", "analyst"),
-    ("Sinta Larasati", "viewer@talentpulse.local", "viewer"),
+    ("Rani Prameswari", "rani@talentpulse.local", "admin"),
+    ("Dimas Anugrah", "dimas@talentpulse.local", "analyst"),
+    ("Sinta Larasati", "sinta@talentpulse.local", "viewer"),
 ]
 
 # Preset query mendukung tahap "Starting" pada model Ellis.

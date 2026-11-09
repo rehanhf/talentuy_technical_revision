@@ -99,8 +99,8 @@ dan keyakinan 1.0 sehingga jejak human-in-the-loop tetap terlihat.
   label periode, dan indikator kesegaran pada top bar.
 - **Recharts** untuk visualisasi; setiap grafik menyediakan alternatif tabel
   (`ChartWithTable`) demi keterbacaan pembaca layar.
-- **Design token** berupa CSS variable kanal RGB sehingga warna merek dapat
-  diganti dari halaman Data & Pengaturan tanpa menyentuh kode komponen.
+- **Design token** berupa CSS variable kanal RGB sehingga warna dapat diubah
+  terpusat di `globals.css` tanpa menyentuh kode komponen.
 
 ## 4. Keputusan teknis
 

@@ -57,14 +57,14 @@ def _token(client: TestClient, email: str) -> dict[str, str]:
 
 @pytest.fixture(scope="session")
 def admin_headers(client: TestClient) -> dict[str, str]:
-    return _token(client, "admin@talentpulse.local")
+    return _token(client, "rani@talentpulse.local")
 
 
 @pytest.fixture(scope="session")
 def analyst_headers(client: TestClient) -> dict[str, str]:
-    return _token(client, "analyst@talentpulse.local")
+    return _token(client, "dimas@talentpulse.local")
 
 
 @pytest.fixture(scope="session")
 def viewer_headers(client: TestClient) -> dict[str, str]:
-    return _token(client, "viewer@talentpulse.local")
+    return _token(client, "sinta@talentpulse.local")

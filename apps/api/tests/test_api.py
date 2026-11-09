@@ -14,7 +14,7 @@ def test_health_reports_seeded_database(client):
 
 def test_login_rejects_wrong_password(client):
     response = client.post(
-        "/auth/login", json={"email": "analyst@talentpulse.local", "password": "salah"}
+        "/auth/login", json={"email": "dimas@talentpulse.local", "password": "salah"}
     )
     assert response.status_code == 401
     assert "tidak sesuai" in response.json()["detail"]
@@ -895,7 +895,7 @@ def test_review_comment_author_is_audited(client, analyst_headers, viewer_header
         e for e in items if e["action"] == "insight.update" and e["entity_id"] == insight["id"]
     )
     assert entry["detail"]["changes"]["review_comment"] == "Komentar viewer"
-    assert entry["actor_email"] == "viewer@talentpulse.local"
+    assert entry["actor_email"] == "sinta@talentpulse.local"
 
 
 def test_review_comment_is_never_exported(client, analyst_headers, admin_headers):
@@ -926,3 +926,26 @@ def test_review_comment_is_never_exported(client, analyst_headers, admin_headers
         )
         assert exported.status_code == 200
         assert marker.encode() not in exported.content
+
+
+def test_demo_accounts_list_names_without_roles(client):
+    body = client.get("/auth/demo-accounts").json()
+    assert [a["name"] for a in body["accounts"]] == [
+        "Rani Prameswari",
+        "Dimas Anugrah",
+        "Sinta Larasati",
+    ]
+    assert all(set(a) == {"name", "email"} for a in body["accounts"])
+    assert body["password"]
+    for account in body["accounts"]:
+        login = client.post(
+            "/auth/login", json={"email": account["email"], "password": body["password"]}
+        )
+        assert login.status_code == 200
+
+
+def test_demo_accounts_hidden_in_production(client, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "environment", "production")
+    assert client.get("/auth/demo-accounts").status_code == 404

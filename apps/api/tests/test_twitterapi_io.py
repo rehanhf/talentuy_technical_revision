@@ -115,3 +115,25 @@ def test_provider_selection_and_ingestion(client, admin_headers, monkeypatch):
     assert overview.json()['meta']['record_count'] == 1
     assert overview.json()['meta']['is_synthetic'] is False
     assert client.get('/posts', params={'data_type': 'invalid'}, headers=admin_headers).status_code == 422
+
+
+def test_official_connector_groups_or_query_before_filters(monkeypatch):
+    """Tanpa kurung, X membaca `a OR b lang:id` sebagai `a OR (b lang:id)`."""
+    from app.connectors import official_x
+    from app.connectors.official_x import OfficialXApiConnector
+
+    seen = []
+
+    def handler(request):
+        seen.append(request.url.params["query"])
+        return httpx.Response(200, json={"data": []})
+
+    monkeypatch.setattr(settings, "x_api_bearer_token", "official-test")
+    original = httpx.Client
+    monkeypatch.setattr(
+        official_x.httpx,
+        "Client",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    OfficialXApiConnector().fetch(query='"gaji telat" OR "potong gaji"')
+    assert seen == ['("gaji telat" OR "potong gaji") lang:id -is:retweet']

@@ -40,7 +40,6 @@ cd apps/api && pytest
 | --- | --- | --- |
 | `src/lib/filters.test.ts` | 9 | Jendela bawaan 30 hari, round-trip URL, chip filter, cross-filter toggle, parameter API |
 | `src/lib/format.test.ts` | 8 | Format ribuan/persen ala Indonesia, "Tidak dapat dibandingkan", nada perubahan, waktu relatif |
-| `src/lib/branding.test.ts` | 6 | Simpan/muat identitas, validasi warna, ketahanan terhadap data rusak, penulisan CSS variable |
 | `src/components/ui.test.tsx` | 8 | Empty state, no-result, error, permission denied, badge sentimen, Escape pada drawer, konfirmasi aksi destruktif |
 | `src/hooks/useFilters.test.tsx` | 4 | Filter dibaca dari URL, klik grafik → filter berubah, hapus chip, reset |
 | `src/app/masuk/page.test.tsx` | 5 | Validasi form, login berhasil → redirect, pesan error Bahasa Indonesia, isi otomatis akun demo |

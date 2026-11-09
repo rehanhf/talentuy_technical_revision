@@ -5,12 +5,11 @@ import {
   CircleSlash,
   Database,
   Link2,
-  Palette,
   RefreshCw,
   Satellite,
   Upload,
 } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 
 import { KeywordPresetManager } from "@/components/keyword-preset-manager";
 import { PageHeader } from "@/components/shell";
@@ -39,14 +38,7 @@ import {
   useUpdateTopic,
 } from "@/hooks/useApi";
 import { ApiError } from "@/lib/api";
-import {
-  DEFAULT_BRANDING,
-  applyBranding,
-  isValidHex,
-  loadBranding,
-  saveBranding,
-  type Branding,
-} from "@/lib/branding";
+import { FETCH_QUERY_MAX_LENGTH, FETCH_TEMPLATES } from "@/lib/fetch-templates";
 import { formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import type { ImportResult, TopicMeta } from "@/lib/types";
 
@@ -139,13 +131,6 @@ export default function DataSettingsPage() {
   const [publicXUrl, setPublicXUrl] = useState("");
   const [publicXError, setPublicXError] = useState<string | null>(null);
   const [publicXResult, setPublicXResult] = useState<ImportResult | null>(null);
-
-  const [branding, setBranding] = useState<Branding>(DEFAULT_BRANDING);
-  const [brandError, setBrandError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setBranding(loadBranding());
-  }, []);
 
   const submitImport = async (event: FormEvent) => {
     event.preventDefault();
@@ -296,27 +281,11 @@ export default function DataSettingsPage() {
     }
   };
 
-  const submitBranding = (event: FormEvent) => {
-    event.preventDefault();
-    setBrandError(null);
-    if (!branding.companyName.trim() || !branding.productName.trim()) {
-      setBrandError("Nama perusahaan dan nama produk tidak boleh kosong.");
-      return;
-    }
-    if (!isValidHex(branding.primaryColor)) {
-      setBrandError("Warna merek harus berupa kode heksadesimal, contoh #2563eb.");
-      return;
-    }
-    saveBranding(branding);
-    applyBranding(branding);
-    setToast({ message: "Identitas dan warna merek diperbarui.", tone: "success" });
-  };
-
   return (
     <>
       <PageHeader
         title="Data & Pengaturan"
-        subtitle="Status sumber data, kualitas data, taxonomy, dan identitas produk. Kredensial API hanya tersimpan pada environment server dan tidak pernah dikirim ke browser."
+        subtitle="Status sumber data, kualitas data, dan taxonomy. Kredensial API hanya tersimpan pada environment server dan tidak pernah dikirim ke browser."
       />
 
       <div className="grid gap-4 xl:grid-cols-2">
@@ -445,15 +414,56 @@ export default function DataSettingsPage() {
                     <label htmlFor="live-query" className="tp-label">
                       Kata kunci pencarian
                     </label>
-                    <input
+                    <textarea
                       id="live-query"
-                      className="tp-input"
+                      rows={3}
+                      className="tp-input min-h-[72px] resize-y font-mono text-xs leading-relaxed"
                       value={liveQuery}
                       onChange={(event) => setLiveQuery(event.target.value)}
                       placeholder="Contoh: loker gudang OR admin gudang"
+                      maxLength={FETCH_QUERY_MAX_LENGTH}
                       disabled={!connectors.data.live_available}
                     />
                   </div>
+
+                  <fieldset>
+                    <legend className="tp-label">Template Keyword</legend>
+                    <p className="mb-2 text-[11px] leading-relaxed text-muted">
+                      Templat hanya mengisi kotak di atas. Periksa kuerinya, lalu tekan
+                      “Tarik data” sendiri karena setiap pencarian memakai kredit provider.
+                    </p>
+                    <ul className="grid gap-1.5 sm:grid-cols-2">
+                      {FETCH_TEMPLATES.map((template) => {
+                        const active = liveQuery.trim() === template.query;
+                        return (
+                          <li key={template.name}>
+                            <button
+                              type="button"
+                              aria-pressed={active}
+                              title={template.query}
+                              onClick={() => {
+                                setLiveQuery(template.query);
+                                setLiveError(null);
+                              }}
+                              disabled={!connectors.data.live_available}
+                              className={`h-full w-full rounded-lg border px-3 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                                active
+                                  ? "border-primary bg-primary-soft"
+                                  : "border-line hover:border-primary/40 hover:bg-surface-muted"
+                              }`}
+                            >
+                              <span className="block text-xs font-medium text-ink">
+                                {template.name}
+                              </span>
+                              <span className="mt-0.5 block text-[11px] leading-snug text-muted">
+                                {template.description}
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </fieldset>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
@@ -795,115 +805,6 @@ export default function DataSettingsPage() {
               </div>
             </div>
           ) : null}
-        </Card>
-
-        {/* ------------------------------------------------------ identitas */}
-        <Card
-          title="Identitas dan warna merek"
-          description="Nama mitra dan warna utama dapat diganti tanpa mengubah kode. Logo resmi belum ditampilkan sampai aset dan persetujuan tersedia."
-        >
-          <form onSubmit={submitBranding} className="space-y-3" noValidate>
-            <div>
-              <label htmlFor="brand-company" className="tp-label">
-                Nama perusahaan
-              </label>
-              <input
-                id="brand-company"
-                className="tp-input"
-                value={branding.companyName}
-                onChange={(event) =>
-                  setBranding((current) => ({
-                    ...current,
-                    companyName: event.target.value,
-                  }))
-                }
-              />
-            </div>
-            <div>
-              <label htmlFor="brand-product" className="tp-label">
-                Nama produk
-              </label>
-              <input
-                id="brand-product"
-                className="tp-input"
-                value={branding.productName}
-                onChange={(event) =>
-                  setBranding((current) => ({
-                    ...current,
-                    productName: event.target.value,
-                  }))
-                }
-              />
-            </div>
-            <div>
-              <label htmlFor="brand-color" className="tp-label">
-                Warna utama
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  id="brand-color"
-                  type="color"
-                  className="h-9 w-12 cursor-pointer rounded-lg border border-line bg-surface"
-                  value={
-                    isValidHex(branding.primaryColor)
-                      ? branding.primaryColor
-                      : DEFAULT_BRANDING.primaryColor
-                  }
-                  onChange={(event) =>
-                    setBranding((current) => ({
-                      ...current,
-                      primaryColor: event.target.value,
-                    }))
-                  }
-                  aria-label="Pilih warna utama"
-                />
-                <input
-                  className="tp-input tabular"
-                  value={branding.primaryColor}
-                  onChange={(event) =>
-                    setBranding((current) => ({
-                      ...current,
-                      primaryColor: event.target.value,
-                    }))
-                  }
-                  aria-label="Kode warna utama"
-                />
-              </div>
-              <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
-                Pengaturan ini tersimpan pada perangkat Anda dan dipakai untuk uji tampilan
-                sebelum brand guideline resmi tersedia. Pastikan kontras teks tetap memenuhi
-                WCAG AA.
-              </p>
-            </div>
-
-            {brandError && (
-              <p
-                role="alert"
-                className="rounded-lg border border-negative/20 bg-negative/5 px-3 py-2 text-xs text-negative-strong"
-              >
-                {brandError}
-              </p>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              <button type="submit" className="tp-btn tp-btn-primary">
-                <Palette className="h-4 w-4" aria-hidden />
-                Simpan identitas
-              </button>
-              <button
-                type="button"
-                className="tp-btn"
-                onClick={() => {
-                  setBranding(DEFAULT_BRANDING);
-                  saveBranding(DEFAULT_BRANDING);
-                  applyBranding(DEFAULT_BRANDING);
-                  setToast({ message: "Identitas dikembalikan ke bawaan.", tone: "success" });
-                }}
-              >
-                Kembalikan bawaan
-              </button>
-            </div>
-          </form>
         </Card>
       </div>
 

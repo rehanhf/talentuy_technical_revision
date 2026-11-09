@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
@@ -9,21 +9,37 @@ import { BrandMark } from "@/components/brand-mark";
 import { ApiError, apiRequest } from "@/lib/api";
 
 interface DemoAccount {
+  name: string;
   email: string;
-  description: string;
 }
+
+const HOW_IT_WORKS: Array<[string, string]> = [
+  ["Himpun", "Unggahan dan balasan publik dikumpulkan dari X berdasarkan kata kunci."],
+  [
+    "Kelompokkan",
+    "Setiap unggahan diberi label isu, sentimen, dan jenis pekerjaan, yang dapat dikoreksi pengguna.",
+  ],
+  [
+    "Deteksi",
+    "Jumlah unggahan setiap minggu dibandingkan dengan minggu-minggu sebelumnya untuk menandai lonjakan.",
+  ],
+  [
+    "Tindak lanjuti",
+    "Telusuri sampai unggahan asli, susun insight, setujui, lalu ekspor laporan.",
+  ],
+];
 
 export default function LoginPage() {
   const router = useRouter();
   const { user, isLoading, login } = useAuth();
 
-  const [email, setEmail] = useState("analyst@talentpulse.local");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [accounts, setAccounts] = useState<DemoAccount[]>([]);
-  const [demoPassword, setDemoPassword] = useState<string>("");
+  const [demoPassword, setDemoPassword] = useState("");
 
   useEffect(() => {
     if (!isLoading && user) router.replace("/");
@@ -70,31 +86,26 @@ export default function LoginPage() {
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-white">
             <BrandMark className="h-6 w-6" />
           </span>
-          <span className="text-3xl font-semibold tracking-[-0.04em]">TID<span className="mt-1 block text-xs font-normal tracking-normal text-muted">Talent Intelegence Dashboard</span></span>
+          <span className="text-3xl font-semibold tracking-[-0.04em]">TalentPulse</span>
         </div>
 
         <div className="max-w-xl py-12">
-          <p className="mb-6 text-xs font-medium uppercase tracking-[0.18em] text-primary">Percakapan menjadi pemahaman</p>
-          <h1 className="text-[44px] font-medium leading-[1.06] tracking-[-0.06em] text-ink xl:text-[60px]">
-            Dengar percakapan kandidat.
-            <br />
-            Perjelas komunikasi rekrutmen.
+          <p className="mb-6 text-xs font-medium uppercase tracking-[0.18em] text-primary">Dasbor informasi TalentPulse</p>
+          <h1 className="text-[40px] font-medium leading-[1.08] tracking-[-0.05em] text-ink xl:text-[52px]">
+            Ketahui isu pekerja alih daya yang sedang meningkat di X.
           </h1>
           <p className="mt-7 max-w-md text-sm leading-relaxed text-muted">
-            Dashboard internal untuk menelusuri pertanyaan, kekhawatiran, dan
-            pengalaman pencari kerja pada percakapan publik — sebagai bahan menyusun
-            informasi lowongan yang lebih jelas.
+            Keluhan pekerja alih daya tentang upah, potongan gaji, kontrak, dan
+            penempatan banyak muncul di X, tetapi tersebar dan cepat tenggelam. Dasbor
+            ini menghimpun percakapan tersebut agar tim PT Siprama Cakrawala dapat
+            melihat isu yang meningkat dan menanggapinya berdasarkan data.
           </p>
 
-          <dl className="mt-10 grid grid-cols-3 gap-4 border-t border-primary/20 pt-6 text-xs">
-            {[
-              ["Topik terkelola", "10 kategori"],
-              ["Rentang data demo", "90 hari"],
-              ["Metrik", "Dihitung backend"],
-            ].map(([label, value]) => (
+          <dl className="mt-10 grid grid-cols-2 gap-x-8 gap-y-5 border-t border-primary/20 pt-6 text-xs">
+            {HOW_IT_WORKS.map(([label, value]) => (
               <div key={label}>
-                <dt className="text-muted">{label}</dt>
-                <dd className="mt-2 font-medium text-ink">{value}</dd>
+                <dt className="font-medium text-ink">{label}</dt>
+                <dd className="mt-1.5 leading-relaxed text-muted">{value}</dd>
               </div>
             ))}
           </dl>
@@ -102,8 +113,8 @@ export default function LoginPage() {
 
         <p className="max-w-lg text-[11px] leading-relaxed text-muted">
           Prototipe tugas akhir berbasis karya untuk PT Siprama Cakrawala. Tidak
-          berafiliasi resmi dengan X. Tidak digunakan untuk profiling atau keputusan
-          penerimaan kandidat.
+          berafiliasi resmi dengan X. Identitas akun disamarkan dan data tidak digunakan
+          untuk menilai atau mengambil keputusan tentang individu.
         </p>
       </section>
 
@@ -113,8 +124,7 @@ export default function LoginPage() {
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-white">
               <BrandMark className="h-6 w-6" />
             </span>
-            <h1 className="mt-3 text-2xl font-semibold">TID</h1>
-            <p className="mt-1 text-xs text-muted">Talent Intelegence Dashboard</p>
+            <h1 className="mt-3 text-2xl font-semibold">TalentPulse</h1>
           </div>
 
           <h2 className="text-[32px] font-medium leading-tight tracking-[-0.05em]">Masuk ke dashboard</h2>
@@ -193,11 +203,8 @@ export default function LoginPage() {
 
           {accounts.length > 0 && (
             <div className="mt-6 rounded-card border border-line bg-surface-muted p-4">
-              <p className="flex items-center gap-1.5 text-xs font-medium text-ink">
-                <ShieldCheck className="h-3.5 w-3.5 text-primary" aria-hidden />
-                Akun demo (khusus lingkungan pengembangan)
-              </p>
-              <ul className="mt-2 space-y-1.5">
+              <p className="text-xs font-medium text-ink">Akun demo untuk presentasi</p>
+              <ul className="mt-2 space-y-1">
                 {accounts.map((account) => (
                   <li key={account.email}>
                     <button
@@ -209,14 +216,14 @@ export default function LoginPage() {
                       }}
                       className="w-full rounded-md border border-transparent px-2 py-1.5 text-left transition hover:border-line hover:bg-surface"
                     >
-                      <span className="block text-xs font-medium text-ink">{account.email}</span>
-                      <span className="block text-[11px] text-muted">{account.description}</span>
+                      <span className="block text-xs font-medium text-ink">{account.name}</span>
+                      <span className="block text-[11px] text-muted">{account.email}</span>
                     </button>
                   </li>
                 ))}
               </ul>
               <p className="mt-2 text-[11px] text-muted">
-                Klik salah satu akun untuk mengisi formulir secara otomatis.
+                Klik nama untuk mengisi email dan kata sandi.
               </p>
             </div>
           )}

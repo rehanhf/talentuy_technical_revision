@@ -54,7 +54,7 @@ class OfficialXApiConnector(SocialDataConnector):
             "%Y-%m-%dT%H:%M:%SZ"
         )
         params = {
-            "query": f"{query} lang:id -is:retweet",
+            "query": f"({query.strip()}) lang:id -is:retweet",
             "max_results": str(min(max(max_results, 10), 100)),
             "start_time": start_time,
             "tweet.fields": "created_at,public_metrics,lang",

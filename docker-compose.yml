@@ -1,4 +1,4 @@
-# TalentPulse — setup satu perintah untuk pengembangan dan demo lokal.
+# TalentPulse â€” setup satu perintah untuk pengembangan dan demo lokal.
 #
 #   cp .env.example .env
 #   docker compose up --build
@@ -34,7 +34,7 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me}
       AUTHOR_HASH_KEY: ${AUTHOR_HASH_KEY:-dev-only-insecure-author-key-change-me}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       DATA_SOURCE_MODE: ${DATA_SOURCE_MODE:-demo}
       # Token hanya dibaca di server; tidak pernah dikirim ke browser.
       X_API_BEARER_TOKEN: ${X_API_BEARER_TOKEN:-}
@@ -49,7 +49,8 @@ services:
     build:
       context: ./apps/web
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
+        API_PROXY_TARGET: http://backend:8000
     container_name: talentpulse-web
     depends_on:
       - backend

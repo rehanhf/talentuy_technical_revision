@@ -1,7 +1,11 @@
 /** Klien HTTP tipis untuk API TalentPulse. */
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+/**
+ * Bawaan `/api`: permintaan dikirim ke domain frontend sendiri lalu diteruskan ke
+ * backend oleh rewrite di next.config.mjs. Isi URL absolut hanya bila backend
+ * sengaja diekspos di alamat publik terpisah.
+ */
+export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "/api").replace(/\/+$/, "");
 
 const TOKEN_KEY = "talentpulse.token";
 
@@ -54,7 +58,8 @@ interface RequestOptions extends Omit<RequestInit, "body"> {
 }
 
 function buildUrl(path: string, params?: Record<string, unknown>): string {
-  const url = new URL(path.startsWith("http") ? path : `${API_BASE_URL}${path}`);
+  const origin = typeof window === "undefined" ? "http://localhost" : window.location.origin;
+  const url = new URL(path.startsWith("http") ? path : `${API_BASE_URL}${path}`, origin);
   if (params) {
     for (const [key, value] of Object.entries(params)) {
       if (value === undefined || value === null || value === "") continue;

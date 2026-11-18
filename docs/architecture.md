@@ -72,7 +72,9 @@ dan keyakinan 1.0 sehingga jejak human-in-the-loop tetap terlihat.
 | --- | --- |
 | Engagement score | `like×1 + repost×2 + reply×1.5 + quote×1.5` (bobot dapat dikonfigurasi) |
 | Perubahan periode | `(sekarang − sebelumnya) / sebelumnya × 100`; `null` bila pembanding nol |
-| Deteksi puncak | Moving average 7 hari + z-score; titik di atas ambang ditandai |
+| Lonjakan isu | Per kelompok isu (topik) per minggu Senin–Minggu: lonjakan bila volume ≥ `SPIKE_MIN_POSTS` (bawaan 10) **dan** naik ≥ `SPIKE_MIN_INCREASE_PERCENT` (bawaan 50%) di atas rata-rata `SPIKE_BASELINE_WEEKS` (bawaan 4) minggu sebelumnya. Minggu tanpa riwayat 4 minggu penuh tidak dinilai. `analytics.detect_issue_spikes` |
+| Retensi | Dihitung dari waktu post nyata masuk sistem. Tidak lolos filter relevansi (tidak masuk kelompok isu, atau skor relevansi < `RETENTION_RELEVANCE_MIN_SCORE`) → dihapus permanen setelah `RETENTION_IRRELEVANT_DAYS` (14) hari. Relevan → dihapus permanen tepat setelah `RETENTION_RAW_DAYS` (90) hari, tanpa masa tenggang. Untuk masa simpan saja, balasan dari induk yang relevan dianggap relevan (disimpan selama induknya); label dan volume balasan tetap dihitung dari teksnya sendiri. Data demo tidak tersentuh. `app/retention.py`, berjalan saat startup dan tiap jam |
+| Balasan | `posts.induk_id` menunjuk post yang dibalas; `induk_external_id` menyimpan ID induk di X agar tautan terbentuk walau induk diimpor belakangan |
 | Relevansi | Skor pencarian (FTS/LIKE) digabung kesegaran dan engagement ternormalisasi |
 | Skor perhatian | Kombinasi volume, momentum kenaikan, dan porsi sentimen negatif |
 | Indeks tren | Titik pertama non-nol dinormalisasi menjadi 100 |

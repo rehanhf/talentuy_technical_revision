@@ -29,6 +29,7 @@ class OfficialXApiConnector(SocialDataConnector):
         "Terhubung ke endpoint pencarian resmi X. Aktif hanya jika "
         "X_API_BEARER_TOKEN diisi pada environment server."
     )
+    supports_replies = True
 
     @property
     def is_available(self) -> bool:
@@ -57,7 +58,29 @@ class OfficialXApiConnector(SocialDataConnector):
             "query": f"({query.strip()}) lang:id -is:retweet",
             "max_results": str(min(max(max_results, 10), 100)),
             "start_time": start_time,
-            "tweet.fields": "created_at,public_metrics,lang",
+        }
+        return self._search(params)
+
+    def fetch_replies(self, parent_external_id: str, *, max_results: int = 20) -> list[RawPost]:
+        """Balasan dalam percakapan post tersebut (operator ``conversation_id``).
+
+        Recent search hanya menjangkau 7 hari terakhir, sama seperti pencarian utama.
+        """
+        if not self.is_available:
+            raise ConnectorUnavailable("Credential X API belum tersedia.")
+        params = {
+            "query": f"conversation_id:{parent_external_id} is:reply",
+            "max_results": str(min(max(max_results, 10), 100)),
+        }
+        replies = self._search(params)
+        for reply in replies:
+            reply.in_reply_to_external_id = reply.in_reply_to_external_id or parent_external_id
+        return [r for r in replies if r.external_post_id != parent_external_id]
+
+    def _search(self, params: dict) -> list[RawPost]:
+        params = {
+            **params,
+            "tweet.fields": "created_at,public_metrics,lang,conversation_id,referenced_tweets",
         }
         headers = {"Authorization": f"Bearer {settings.x_api_bearer_token}"}
 
@@ -72,6 +95,14 @@ class OfficialXApiConnector(SocialDataConnector):
         posts: list[RawPost] = []
         for item in payload:
             metrics = item.get("public_metrics", {})
+            replied_to = next(
+                (
+                    str(ref["id"])
+                    for ref in item.get("referenced_tweets") or []
+                    if ref.get("type") == "replied_to"
+                ),
+                None,
+            )
             posts.append(
                 RawPost(
                     external_post_id=str(item["id"]),
@@ -89,6 +120,7 @@ class OfficialXApiConnector(SocialDataConnector):
                     url=None,
                     is_synthetic=False,
                     source="x_api",
+                    in_reply_to_external_id=replied_to,
                 )
             )
         return posts

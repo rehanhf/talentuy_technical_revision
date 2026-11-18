@@ -16,6 +16,7 @@ import {
   LabelCorrection,
 } from "@/components/classification-basis";
 import { ActiveFilterChips } from "@/components/filter-panel";
+import { PostThreadSection } from "@/components/post-thread";
 import { PageHeader } from "@/components/shell";
 import {
   Card,
@@ -27,7 +28,7 @@ import {
   Tag,
   Toast,
 } from "@/components/ui";
-import { useKeywordPresets, usePosts } from "@/hooks/useApi";
+import { useKeywordPresets, useMarkReviewed, usePosts } from "@/hooks/useApi";
 import { useFilters } from "@/hooks/useFilters";
 import { useReportMeta } from "@/hooks/useMeta";
 import { ApiError } from "@/lib/api";
@@ -54,6 +55,7 @@ export default function PostExplorerPage() {
   );
   const presets = useKeywordPresets();
 
+  const markReviewed = useMarkReviewed();
   const { data, isLoading, isError, error, refetch, isFetching } = usePosts(
     apiParams,
     sort,
@@ -330,6 +332,8 @@ export default function PostExplorerPage() {
               <Highlighted text={activePost.text} terms={drawerTerms} />
             </p>
 
+            <PostThreadSection post={activePost} onOpen={setActivePost} />
+
             <ClassificationBasis
               post={activePost}
               focus={basisFocus}
@@ -343,6 +347,45 @@ export default function PostExplorerPage() {
               showConfidence
               canCorrect
             />
+
+            {activePost.needs_review && (
+              <section
+                aria-labelledby="judul-periksa"
+                className="rounded-lg border border-warning/30 bg-warning/5 p-3"
+              >
+                <h3
+                  id="judul-periksa"
+                  className="text-xs font-semibold uppercase tracking-wide text-warning-strong"
+                >
+                  Perlu ditinjau
+                </h3>
+                <p className="mt-1 text-[11px] leading-relaxed text-ink">
+                  Bila aturan yang terpicu di atas sudah tepat, tandai post ini sebagai sudah
+                  diperiksa. Label tidak berubah; tindakan ini tercatat di log audit. Bila ada
+                  label yang keliru, gunakan koreksi label di bawah.
+                </p>
+                <button
+                  type="button"
+                  className="tp-btn tp-btn-primary mt-2"
+                  disabled={markReviewed.isPending}
+                  onClick={async () => {
+                    try {
+                      const updated = await markReviewed.mutateAsync(activePost.id);
+                      setActivePost(updated);
+                      setToast({ message: "Post ditandai sudah diperiksa.", tone: "success" });
+                    } catch (caught) {
+                      setToast({
+                        message:
+                          caught instanceof ApiError ? caught.userMessage : "Gagal menyimpan.",
+                        tone: "error",
+                      });
+                    }
+                  }}
+                >
+                  {markReviewed.isPending ? "Menyimpan…" : "Tandai sudah diperiksa"}
+                </button>
+              </section>
+            )}
 
             <LabelCorrection
               post={activePost}

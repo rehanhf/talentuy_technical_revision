@@ -92,7 +92,7 @@ const READING_TIPS: Array<{ title: string; body: string }> = [
   },
   {
     title: "Lonjakan bukan otomatis masalah",
-    body: "Puncak ditandai bila volume harian melampaui ambang statistik terhadap garis dasar periode. Selalu buka post terkait sebelum mengambil kesimpulan.",
+    body: "Lonjakan dinilai per kelompok isu setiap minggu: ditandai bila volume minggu itu mencapai ambang jumlah post dan naik melampaui ambang persentase dibanding rata-rata empat minggu sebelumnya. Kedua ambang dapat disetel. Selalu buka post terkait sebelum mengambil kesimpulan.",
   },
 ];
 
@@ -174,6 +174,70 @@ export default function MethodologyPage() {
               </div>
             </div>
           </Card>
+
+          {methodology.data.privacy && (
+            <Card
+              title="Pelindungan data pribadi"
+              description="Dasar pemrosesan, data yang disimpan, penyamaran identitas, dan masa retensi."
+              className="xl:col-span-2"
+            >
+              <div className="grid gap-4 text-xs leading-relaxed lg:grid-cols-2">
+                <div className="space-y-3">
+                  <div>
+                    <p className="tp-label">Dasar pemrosesan</p>
+                    <p className="text-ink">{methodology.data.privacy.legal_basis}</p>
+                  </div>
+                  <div>
+                    <p className="tp-label">Data yang disimpan</p>
+                    <p className="text-muted">{methodology.data.privacy.data_collected}</p>
+                  </div>
+                  <div>
+                    <p className="tp-label">Penyamaran identitas</p>
+                    <ul className="space-y-1.5">
+                      {methodology.data.privacy.pseudonymisation.map((rule) => (
+                        <li key={rule} className="flex items-start gap-2">
+                          <ShieldCheck
+                            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-positive-strong"
+                            aria-hidden
+                          />
+                          <span className="text-ink">{rule}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                <div>
+                  <p className="tp-label">Masa retensi</p>
+                  <dl className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg border border-line px-3 py-2">
+                      <dt className="text-[11px] text-muted">Unggahan relevan</dt>
+                      <dd className="tabular text-lg font-semibold text-ink">
+                        {methodology.data.privacy.retention.relevant_days} hari
+                      </dd>
+                    </div>
+                    <div className="rounded-lg border border-line px-3 py-2">
+                      <dt className="text-[11px] text-muted">Tidak relevan</dt>
+                      <dd className="tabular text-lg font-semibold text-ink">
+                        {methodology.data.privacy.retention.irrelevant_days} hari
+                      </dd>
+                    </div>
+                  </dl>
+                  <p className="mt-2 text-muted">
+                    Dihitung sejak unggahan dihimpun, lalu dihapus permanen beserta hasil
+                    analisisnya. {methodology.data.privacy.retention.relevance_rule}{" "}
+                    {methodology.data.privacy.retention.applies_to} Pemeriksaan berjalan
+                    otomatis setiap {methodology.data.privacy.retention.check_interval_hours}{" "}
+                    jam dan setiap penghapusan tercatat di log audit.
+                  </p>
+                  {!methodology.data.privacy.retention.enabled && (
+                    <p className="mt-2 rounded bg-warning/12 px-2 py-1 text-warning-strong">
+                      Retensi otomatis sedang dinonaktifkan pada server ini.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )}
 
           <Card
             title="Etika dan batas penggunaan"

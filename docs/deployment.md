@@ -19,6 +19,17 @@ docker compose ps          # ketiga layanan harus "healthy"/"running"
 curl http://localhost:8000/health
 ```
 
+`--reset` menghapus **seluruh** data, termasuk data nyata, insight, akun, dan
+audit log. Untuk menyegarkan data demo saja (mis. pada hari pengujian), pakai:
+
+```bash
+docker compose exec backend python -m app.seed --reseed-demo
+```
+
+Perintah ini mengganti 1.400 post sintetis agar berakhir pada hari itu dan
+memuat satu lonjakan isu pada minggu berjalan; data nyata, insight, akun, dan
+audit log tidak disentuh. Jalankan pada pagi hari pengujian.
+
 Menghentikan dan membersihkan:
 
 ```bash

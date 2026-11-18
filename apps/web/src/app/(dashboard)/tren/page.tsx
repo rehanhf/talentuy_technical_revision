@@ -212,43 +212,76 @@ export default function TrendPage() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card
-              title="Lonjakan terdeteksi"
-              description="Hari dengan volume jauh di atas rata-rata bergerak 7 hari."
-              definition="Deteksi memakai z-score sederhana terhadap rata-rata bergerak. Lonjakan adalah pengamatan statistik; penyebabnya harus ditelusuri manusia."
+              title="Lonjakan isu mingguan"
+              description={
+                data
+                  ? `Kelompok isu dengan minimal ${data.spike_rule.min_posts} post dalam seminggu dan naik minimal ${formatPercent(data.spike_rule.min_increase_percent)} dibanding rata-rata ${data.spike_rule.baseline_weeks} minggu sebelumnya.`
+                  : "Kelompok isu yang volume mingguannya melewati dua ambang."
+              }
+              definition={
+                data
+                  ? `${data.spike_rule.description} Kedua ambang adalah parameter yang dapat disetel; lonjakan adalah pengamatan statistik dan penyebabnya harus ditelusuri manusia.`
+                  : undefined
+              }
             >
               {isLoading || !data ? (
                 <TableSkeleton rows={4} />
               ) : data.peaks.length === 0 ? (
                 <p className="py-6 text-center text-xs text-muted">
-                  Tidak ada lonjakan yang melewati ambang pada periode ini.
+                  Tidak ada kelompok isu yang melewati kedua ambang pada periode ini.
                 </p>
               ) : (
                 <div className="tp-scroll-x">
-                  <table className="w-full min-w-[440px] text-xs">
+                  <table className="w-full min-w-[520px] text-xs">
                     <thead className="text-left text-muted">
                       <tr className="border-b border-line">
-                        <th scope="col" className="py-2 font-medium">Tanggal</th>
+                        <th scope="col" className="py-2 font-medium">Minggu</th>
+                        <th scope="col" className="py-2 font-medium">Kelompok isu</th>
                         <th scope="col" className="py-2 font-medium">Jumlah</th>
-                        <th scope="col" className="py-2 font-medium">Rata-rata</th>
-                        <th scope="col" className="py-2 font-medium">Selisih</th>
+                        <th scope="col" className="py-2 font-medium">
+                          Rata-rata {data.spike_rule.baseline_weeks} mgg
+                        </th>
+                        <th scope="col" className="py-2 font-medium">Kenaikan</th>
                         <th scope="col" className="py-2 font-medium">Aksi</th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.peaks.slice(0, 8).map((peak) => (
-                        <tr key={peak.date} className="border-b border-line last:border-0">
-                          <td className="py-2">{formatShortDate(peak.date)}</td>
-                          <td className="tabular py-2 font-medium">{formatNumber(peak.count)}</td>
-                          <td className="tabular py-2 text-muted">{formatNumber(peak.baseline)}</td>
+                        <tr
+                          key={`${peak.week_start}-${peak.topic_slug}`}
+                          className="border-b border-line last:border-0"
+                        >
                           <td className="py-2">
-                            <ChangeBadge value={peak.delta_percent} />
+                            {formatShortDate(peak.week_start)} – {formatShortDate(peak.week_end)}
+                            {peak.is_partial_week && (
+                              <span className="block text-[10px] text-muted">minggu berjalan</span>
+                            )}
+                          </td>
+                          <td className="py-2 text-ink">{peak.topic_name}</td>
+                          <td className="tabular py-2 font-medium">{formatNumber(peak.count)}</td>
+                          <td
+                            className="tabular py-2 text-muted"
+                            title={`Minggu pembanding: ${peak.previous_weeks.join(", ")} post`}
+                          >
+                            {formatNumber(peak.baseline)}
+                          </td>
+                          <td className="py-2">
+                            {peak.delta_percent === null ? (
+                              <span className="text-[11px] text-muted">muncul dari nol</span>
+                            ) : (
+                              <ChangeBadge value={peak.delta_percent} />
+                            )}
                           </td>
                           <td className="py-2">
                             <button
                               type="button"
                               className="text-primary hover:underline"
                               onClick={() => {
-                                setFilters({ date_from: peak.date, date_to: peak.date });
+                                setFilters({
+                                  date_from: peak.week_start,
+                                  date_to: peak.week_end,
+                                  topics: [peak.topic_slug],
+                                });
                                 router.push("/post");
                               }}
                             >

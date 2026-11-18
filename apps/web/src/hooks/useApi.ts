@@ -21,6 +21,7 @@ import type {
   OverviewResponse,
   Post,
   PostListResponse,
+  PostThread,
   Report,
   ReportPreview,
   SourceQuery,
@@ -54,6 +55,16 @@ export function useOverview(params: Params) {
   return useQuery(
     dashboardQuery<OverviewResponse>(["overview", params], "/dashboard/overview", params),
   );
+}
+
+/** Induk dan balasan tersimpan untuk satu post (relasi induk_id). */
+export function usePostThread(postId: string | null) {
+  return useQuery({
+    queryKey: ["post-thread", postId],
+    queryFn: () => apiRequest<PostThread>(`/posts/${postId}/thread`),
+    enabled: Boolean(postId),
+    staleTime: 60_000,
+  });
 }
 
 export function useTrends(
@@ -408,6 +419,22 @@ export function useCorrectLabels() {
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ["posts"] });
       client.invalidateQueries({ queryKey: ["audit"] });
+    },
+  });
+}
+
+/** Tandai post 'perlu ditinjau' sebagai sudah diperiksa; label tidak diubah. */
+export function useMarkReviewed() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (postId: string) => {
+      await apiRequest(`/posts/${postId}/review`, { method: "POST" });
+      return apiRequest<Post>(`/posts/${postId}`);
+    },
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["posts"] });
+      client.invalidateQueries({ queryKey: ["audit"] });
+      client.invalidateQueries({ queryKey: ["data-quality"] });
     },
   });
 }

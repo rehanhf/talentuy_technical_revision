@@ -38,6 +38,42 @@ class Settings(BaseSettings):
     engagement_weight_reply: float = 1.5
     engagement_weight_quote: float = 1.5
 
+    # Aturan lonjakan isu (Tujuan 3). Suatu kelompok isu dinyatakan melonjak pada
+    # suatu minggu bila (1) volumenya >= SPIKE_MIN_POSTS dan (2) naik
+    # >= SPIKE_MIN_INCREASE_PERCENT di atas rata-rata SPIKE_BASELINE_WEEKS minggu
+    # sebelumnya. Nilai bawaan ditetapkan untuk prototipe berdasarkan volume yang
+    # teramati dan dapat disetel lewat environment tanpa mengubah kode.
+    spike_min_posts: int = 10
+    spike_min_increase_percent: float = 50.0
+    spike_baseline_weeks: int = 4
+
+    # Pengambilan balasan saat menarik data live: balasan diambil untuk post
+    # dengan reply_count terbanyak, dibatasi agar kuota/kredit API terkendali.
+    reply_fetch_enabled: bool = True
+    reply_fetch_max_parents: int = 5
+    reply_fetch_max_per_parent: int = 20
+
+    # Retensi data nyata (tidak berlaku untuk data sintetis/demo), dihitung dari
+    # waktu post masuk sistem. Post yang tidak lolos filter relevansi (tidak
+    # masuk kelompok isu mana pun, atau skor relevansi < RETENTION_RELEVANCE_MIN_SCORE)
+    # dihapus permanen setelah RETENTION_IRRELEVANT_DAYS; post relevan dihapus
+    # permanen tepat setelah RETENTION_RAW_DAYS.
+    retention_enabled: bool = True
+    retention_raw_days: int = 90
+    retention_irrelevant_days: int = 14
+    retention_relevance_min_score: float = 0.0
+    # Diperiksa tiap jam sehingga post terhapus paling lambat 1 jam setelah batasnya.
+    retention_interval_hours: int = 1
+
+    # Dasar pemrosesan data pribadi yang ditampilkan di /metodologi. Samakan
+    # dengan rumusan pada naskah (Bab II) bila berbeda.
+    privacy_legal_basis: str = (
+        "Kepentingan yang sah (Pasal 20 ayat (2) huruf f UU No. 27 Tahun 2022 tentang "
+        "Pelindungan Data Pribadi): memahami isu yang dibicarakan pencari kerja secara "
+        "agregat untuk memperbaiki komunikasi rekrutmen, tanpa menilai atau mengambil "
+        "keputusan tentang individu."
+    )
+
     seed_post_count: int = 1400
     seed_days: int = 90
     seed_random_state: int = 20260828

@@ -80,6 +80,43 @@ def methodology(db: Session = Depends(get_db)) -> dict:
         ],
         "limitations": PRODUCT_LIMITATIONS,
         "freshness": freshness,
+        "privacy": privacy_summary(),
+    }
+
+
+def privacy_summary() -> dict:
+    """Ringkasan pelindungan data pribadi; angka retensi dibaca dari konfigurasi
+    yang benar-benar dipakai job retensi, sehingga tampilan tidak bisa berbeda
+    dari perilaku sistem."""
+    return {
+        "legal_basis": settings.privacy_legal_basis,
+        "data_collected": (
+            "Teks unggahan publik, waktu unggah, metrik interaksi (suka, repost, balasan, "
+            "kutipan), ID post, dan ID post induk untuk balasan. Tidak ada atribut sensitif "
+            "dan tidak ada data profil akun."
+        ),
+        "pseudonymisation": [
+            "Username penulis disimpan sebagai HMAC-SHA256 berkunci dan tidak pernah ditampilkan.",
+            "Tautan post disimpan tanpa username (x.com/i/status/{id}).",
+            "Username akun lain yang disebut di teks (@handle) diganti @pengguna sebelum disimpan.",
+            "Pencarian dan filter tidak dapat dilakukan berdasarkan identitas akun.",
+        ],
+        "retention": {
+            "relevant_days": settings.retention_raw_days,
+            "irrelevant_days": settings.retention_irrelevant_days,
+            "check_interval_hours": settings.retention_interval_hours,
+            "relevance_rule": (
+                "Unggahan relevan bila masuk salah satu kelompok isu"
+                + (
+                    f" dan skor relevansinya minimal {settings.retention_relevance_min_score:g}"
+                    if settings.retention_relevance_min_score > 0
+                    else ""
+                )
+                + ". Untuk masa simpan, balasan mengikuti relevansi unggahan induknya."
+            ),
+            "applies_to": "Hanya data nyata; data demo sintetis tidak memuat data pribadi.",
+            "enabled": settings.retention_enabled,
+        },
     }
 
 
@@ -105,6 +142,17 @@ _ALLOWED_LABELS = {
 }
 
 
+def _label_snapshot(analysis: PostAnalysis) -> dict:
+    """Nilai label saat ini, dipakai untuk mencatat sebelum/sesudah di audit log."""
+    return {
+        "topic_slug": analysis.topic.slug if analysis.topic else None,
+        "sentiment_label": analysis.sentiment_label,
+        "intent_label": analysis.intent_label,
+        "job_role": analysis.job_role,
+        "needs_review": analysis.needs_review,
+    }
+
+
 def _validate_labels(changes: dict) -> None:
     for field, allowed in _ALLOWED_LABELS.items():
         value = changes.get(field)
@@ -127,6 +175,7 @@ def correct_labels(
     analysis: PostAnalysis = post.analysis
     changes = payload.model_dump(exclude_unset=True)
     _validate_labels(changes)
+    before = _label_snapshot(analysis)
 
     # Catat label otomatis yang diganti agar dasar klasifikasi tetap jujur.
     explanation = {key: dict(value) for key, value in (analysis.explanation or {}).items()}
@@ -166,9 +215,66 @@ def correct_labels(
     analysis.corrected_by = user.id
     analysis.model_version = f"{analysis.model_version}+koreksi-manual"
 
-    write_audit(db, user, "label.correct", "post", post.id, changes)
+    db.flush()
+    db.expire(analysis, ["topic"])
+    after = _label_snapshot(analysis)
+    # Hanya kolom yang benar-benar berubah; waktu koreksi tersimpan di created_at.
+    changed = [field for field in before if before[field] != after[field]]
+    write_audit(
+        db,
+        user,
+        "label.correct",
+        "post",
+        post.id,
+        {
+            "before": {field: before[field] for field in changed},
+            "after": {field: after[field] for field in changed},
+            "fields": changed,
+        },
+    )
     db.commit()
     return {"status": "ok", "post_id": post.id, "message": "Label berhasil diperbarui."}
+
+
+@router.post("/posts/{post_id}/review")
+def mark_post_reviewed(
+    post_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Tandai post bertanda 'perlu ditinjau' sebagai sudah diperiksa manusia.
+
+    Label otomatis dinyatakan benar apa adanya (tidak ada label yang diubah); hanya
+    tanda needs_review yang dibersihkan. Tercatat di audit log sebagai
+    ``label.review`` beserta nilai sebelum/sesudah dan label yang dikonfirmasi.
+    """
+    post = db.get(Post, post_id)
+    if post is None or post.deleted_at is not None or post.analysis is None:
+        raise HTTPException(status_code=404, detail="Post atau analisisnya tidak ditemukan.")
+    analysis: PostAnalysis = post.analysis
+    if not analysis.needs_review:
+        raise HTTPException(
+            status_code=409, detail="Post ini tidak sedang ditandai perlu ditinjau."
+        )
+
+    confirmed = _label_snapshot(analysis)
+    analysis.needs_review = False
+    analysis.corrected_by = user.id
+    write_audit(
+        db,
+        user,
+        "label.review",
+        "post",
+        post.id,
+        {
+            "before": {"needs_review": True},
+            "after": {"needs_review": False},
+            "fields": ["needs_review"],
+            "confirmed_labels": {k: v for k, v in confirmed.items() if k != "needs_review"},
+        },
+    )
+    db.commit()
+    return {"status": "ok", "post_id": post.id, "message": "Post ditandai sudah diperiksa."}
 
 
 @router.post("/usability/events", status_code=201)

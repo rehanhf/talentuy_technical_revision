@@ -14,6 +14,8 @@ if _TEST_DB.exists():
     _TEST_DB.unlink()
 os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DB.as_posix()}"
 os.environ["JWT_SECRET"] = "test-secret"
+# Retensi diuji langsung lewat run_retention(); thread latar belakang dimatikan.
+os.environ["RETENTION_ENABLED"] = "false"
 os.environ["DEMO_PASSWORD"] = "TalentPulse123!"
 # Tests must never inherit live provider credentials.
 os.environ["X_API_PROVIDER"] = "official"

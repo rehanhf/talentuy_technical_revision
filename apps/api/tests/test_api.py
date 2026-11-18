@@ -452,6 +452,20 @@ def test_import_public_x_ingests_real_post(client, admin_headers, db, monkeypatc
         assert post.source == "x_public_embed"
         assert post.is_synthetic is False
         assert post.analysis is not None
+
+        # Tautan yang sama dikirim lagi: ditolak dengan pesan kesalahan, layanan X
+        # tidak dihubungi, dan tidak ada ingestion run baru.
+        calls = []
+        monkeypatch.setattr(XPublicEmbedConnector, "fetch",
+                            lambda self, **kwargs: calls.append(1) or [sample])
+        again = client.post(
+            "/data/import-public-x",
+            headers=admin_headers,
+            json={"url": "https://twitter.com/akun_lain/status/1566952453937205248"},
+        )
+        assert again.status_code == 409
+        assert "sudah pernah dikirim" in again.json()["detail"]
+        assert calls == []
     finally:
         post = db.scalar(select(Post).where(Post.external_post_id == sample.external_post_id))
         if post is not None:
@@ -667,6 +681,20 @@ def test_methodology_exposes_limitations(client):
     assert body["is_synthetic"] is True
     assert len(body["limitations"]) >= 5
     assert any("tidak berafiliasi resmi" in item for item in body["ethics"])
+
+
+def test_methodology_privacy_reflects_live_retention_config(client, monkeypatch):
+    """Angka retensi di /metodologi berasal dari konfigurasi yang dipakai job retensi."""
+    from app.config import settings
+
+    privacy = client.get("/methodology").json()["privacy"]
+    assert "UU No. 27 Tahun 2022" in privacy["legal_basis"]
+    assert privacy["retention"]["relevant_days"] == settings.retention_raw_days
+    assert privacy["retention"]["irrelevant_days"] == settings.retention_irrelevant_days
+    assert any("@pengguna" in rule for rule in privacy["pseudonymisation"])
+
+    monkeypatch.setattr(settings, "retention_raw_days", 60)
+    assert client.get("/methodology").json()["privacy"]["retention"]["relevant_days"] == 60
 
 
 def test_connectors_never_expose_credentials(client, analyst_headers, monkeypatch):
@@ -942,6 +970,97 @@ def test_demo_accounts_list_names_without_roles(client):
             "/auth/login", json={"email": account["email"], "password": body["password"]}
         )
         assert login.status_code == 200
+
+
+def test_label_correction_audit_records_before_and_after(client, analyst_headers, admin_headers):
+    from sqlalchemy import select
+
+    from app.database import SessionLocal
+    from app.models import Post, PostAnalysis, Topic
+
+    with SessionLocal() as db:
+        post = db.scalars(
+            select(Post).join(PostAnalysis).where(PostAnalysis.topic_id.is_not(None))
+        ).first()
+        old_sentiment = post.analysis.sentiment_label
+        old_topic = post.analysis.topic.slug
+        new_topic = next(t.slug for t in db.scalars(select(Topic)) if t.slug != old_topic)
+        post_id = post.id
+    new_sentiment = "Positif" if old_sentiment != "Positif" else "Negatif"
+
+    response = client.patch(
+        f"/posts/{post_id}/labels",
+        json={"sentiment_label": new_sentiment, "topic_slug": new_topic},
+        headers=analyst_headers,
+    )
+    assert response.status_code == 200, response.text
+
+    items = client.get("/data/audit", headers=admin_headers, params={"limit": 200}).json()["items"]
+    entry = next(e for e in items if e["action"] == "label.correct" and e["entity_id"] == post_id)
+    assert entry["created_at"]
+    detail = entry["detail"]
+    assert detail["before"]["sentiment_label"] == old_sentiment
+    assert detail["after"]["sentiment_label"] == new_sentiment
+    # Perubahan topik ikut tercatat (sebelumnya hilang dari audit log).
+    assert detail["before"]["topic_slug"] == old_topic
+    assert detail["after"]["topic_slug"] == new_topic
+    assert set(detail["fields"]) >= {"sentiment_label", "topic_slug"}
+
+
+def test_mark_reviewed_clears_flag_audits_and_moves_quality(client, analyst_headers, admin_headers):
+    from sqlalchemy import select
+
+    from app.database import SessionLocal
+    from app.models import Post, PostAnalysis
+
+    with SessionLocal() as db:
+        post = db.scalars(
+            select(Post).join(PostAnalysis).where(PostAnalysis.needs_review.is_(True))
+        ).first()
+        assert post is not None, "seed harus memuat post yang perlu ditinjau"
+        post_id, labels_before = post.id, (post.analysis.sentiment_label, post.analysis.topic_id)
+
+    quality_before = client.get("/data/quality", headers=admin_headers).json()
+    response = client.post(f"/posts/{post_id}/review", headers=analyst_headers)
+    assert response.status_code == 200, response.text
+
+    with SessionLocal() as db:
+        analysis = db.get(Post, post_id).analysis
+        assert analysis.needs_review is False
+        # Label tidak berubah: tindakan ini mengonfirmasi, bukan mengoreksi.
+        assert (analysis.sentiment_label, analysis.topic_id) == labels_before
+
+    items = client.get("/data/audit", headers=admin_headers, params={"limit": 200}).json()["items"]
+    entry = next(e for e in items if e["action"] == "label.review" and e["entity_id"] == post_id)
+    assert entry["detail"]["before"] == {"needs_review": True}
+    assert entry["detail"]["after"] == {"needs_review": False}
+    assert entry["detail"]["confirmed_labels"]["sentiment_label"] == labels_before[0]
+    assert entry["created_at"]
+
+    quality_after = client.get("/data/quality", headers=admin_headers).json()
+    assert quality_after != quality_before, "angka perlu ditinjau di /data/quality harus bergerak"
+
+    # Kedua kalinya ditolak: post sudah tidak bertanda.
+    assert client.post(f"/posts/{post_id}/review", headers=analyst_headers).status_code == 409
+
+
+def test_seed_syncs_changed_demo_password(client, monkeypatch):
+    from app.config import settings
+    from app.database import SessionLocal
+    from app.seed import seed_users
+
+    email = "rani@talentpulse.local"
+    monkeypatch.setattr(settings, "demo_password", "Ganti-Baru-99!")
+    assert client.post("/auth/login", json={"email": email, "password": "Ganti-Baru-99!"}).status_code == 401
+
+    with SessionLocal() as db:
+        seed_users(db)
+    assert client.post("/auth/login", json={"email": email, "password": "Ganti-Baru-99!"}).status_code == 200
+
+    monkeypatch.undo()
+    with SessionLocal() as db:
+        seed_users(db)
+    assert client.post("/auth/login", json={"email": email, "password": settings.demo_password}).status_code == 200
 
 
 def test_demo_accounts_hidden_in_production(client, monkeypatch):

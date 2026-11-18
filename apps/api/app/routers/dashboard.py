@@ -37,7 +37,8 @@ def overview(
     return {
         "kpis": kpis,
         "volume_series": series,
-        "peaks": analytics.detect_peaks(series)[:5],
+        "peaks": analytics.detect_issue_spikes(db, filters)[:5],
+        "spike_rule": analytics.spike_rule(),
         "topics": topics[:12],
         "sentiment_by_role": analytics.sentiment_by_role(db, filters)[:8],
         "heatmap": analytics.concern_heatmap(db, filters),
@@ -80,7 +81,7 @@ def trends(
     elif breakdown == "sentiment":
         breakdown_rows = analytics.sentiment_breakdown(db, filters)
 
-    peaks = analytics.detect_peaks(daily)
+    peaks = analytics.detect_issue_spikes(db, filters)
     return {
         "granularity": granularity,
         "series": series,
@@ -93,10 +94,11 @@ def trends(
         "breakdown_type": breakdown,
         "breakdown": breakdown_rows,
         "peaks": peaks,
+        "spike_rule": analytics.spike_rule(),
         "annotations": [
             {
                 "date": peak["date"],
-                "label": f"Lonjakan terdeteksi ({peak['count']} post)",
+                "label": f"Lonjakan terdeteksi: {peak['topic_name']} ({peak['count']} post/minggu)",
                 "note": "Lonjakan bersifat deskriptif; penyebab perlu ditinjau manusia.",
             }
             for peak in peaks[:3]
@@ -152,7 +154,8 @@ def topic_detail(
     return {
         "topic": topic,
         "series": series,
-        "peaks": analytics.detect_peaks(series)[:3],
+        "peaks": analytics.detect_issue_spikes(db, filters),
+        "spike_rule": analytics.spike_rule(),
         "sentiment": analytics.sentiment_breakdown(db, filters),
         "intents": analytics.intent_breakdown(db, filters),
         "job_roles": analytics.job_role_breakdown(db, filters)[:8],

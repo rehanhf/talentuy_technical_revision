@@ -136,6 +136,16 @@ TYPO_MAP = {
 }
 
 
+# Lonjakan minggu berjalan: kelompok isu, jumlah minimum post-nya pada minggu itu,
+# dan porsi volume minggu itu yang dialihkan ke isu tersebut. Sekitar sepertiga
+# templat terklasifikasi ke isu lain, jadi minimum 24 menjamin ambang volume (10)
+# dan ambang kenaikan (+50% atas rata-rata 4 minggu) terlampaui dengan selisih
+# aman walau seed dijalankan pada hari Senin.
+CURRENT_WEEK_SPIKE_TOPIC = "keamanan-penipuan"
+CURRENT_WEEK_SPIKE_MIN_POSTS = 24
+CURRENT_WEEK_SPIKE_FOCUS = 0.35
+
+
 class MockXConnector(SocialDataConnector):
     name = "mock_x"
     label = "Data Demo Sintetis"
@@ -164,20 +174,57 @@ class MockXConnector(SocialDataConnector):
         end_dt = (end or utcnow()).replace(hour=23, minute=0, second=0, microsecond=0)
         start_dt = end_dt - timedelta(days=days - 1)
 
-        weights = self._day_weights(rng, days)
+        weights = self._day_weights(rng, days, start_dt)
         spikes = self._spike_plan(rng, days)
+
+        # Lonjakan pada minggu berjalan (Senin s.d. hari seed). Dataset selalu
+        # berakhir pada hari seed dijalankan, sehingga minggu berjalan saat demo
+        # memuat satu kelompok isu yang melonjak.
+        current_week_days = end_dt.weekday() + 1
+        current_week = range(max(0, days - current_week_days), days)
+        current_share = sum(weights[i] for i in current_week) / sum(weights)
+        current_target = max(
+            CURRENT_WEEK_SPIKE_MIN_POSTS,
+            round(count * current_share * CURRENT_WEEK_SPIKE_FOCUS),
+        )
+        current_week_quota = {
+            i: -(-current_target // len(current_week)) for i in current_week
+        }
+
+        # Jumlah post per hari ditentukan di muka agar total tepat `count` tanpa
+        # memotong hari-hari terakhir (tempat lonjakan minggu berjalan berada).
+        day_counts = [max(1, round(count * w / sum(weights))) for w in weights]
+        for i, forced in current_week_quota.items():
+            day_counts[i] = max(day_counts[i], forced + 2)
+        adjustable = sorted(
+            (i for i in range(days) if i not in current_week_quota),
+            key=lambda i: day_counts[i],
+            reverse=True,
+        )
+        cursor = 0
+        while sum(day_counts) > count and adjustable:
+            i = adjustable[cursor % len(adjustable)]
+            if day_counts[i] > 1:
+                day_counts[i] -= 1
+            cursor += 1
+            if cursor > days * count:  # pragma: no cover - pengaman
+                break
 
         posts: list[RawPost] = []
         counter = id_offset
         for day_index in range(days):
             day = start_dt + timedelta(days=day_index)
-            share = weights[day_index] / sum(weights)
-            day_count = max(1, round(count * share))
+            day_count = day_counts[day_index]
             focus_topic = spikes.get(day_index)
+            forced = current_week_quota.get(day_index, 0)
 
-            for _ in range(day_count):
+            for post_index in range(day_count):
                 counter += 1
-                topic_slug, intent, template = self._pick_template(rng, focus_topic)
+                if post_index < forced:
+                    pool = [t for t in TEMPLATES if t[0] == CURRENT_WEEK_SPIKE_TOPIC]
+                    topic_slug, intent, template = rng.choice(pool)
+                else:
+                    topic_slug, intent, template = self._pick_template(rng, focus_topic)
                 role = self._pick_role(rng, topic_slug)
                 text = self._render(rng, template, role)
                 created = day.replace(
@@ -233,11 +280,11 @@ class MockXConnector(SocialDataConnector):
     # ------------------------------------------------------------------ utils
 
     @staticmethod
-    def _day_weights(rng: random.Random, days: int) -> list[float]:
-        """Bobot harian: akhir pekan lebih sepi, ditambah derau ringan."""
+    def _day_weights(rng: random.Random, days: int, start: datetime) -> list[float]:
+        """Bobot harian: Sabtu-Minggu (menurut tanggal sebenarnya) lebih sepi, ditambah derau."""
         weights = []
         for index in range(days):
-            weekday = (index + 3) % 7
+            weekday = (start + timedelta(days=index)).weekday()
             base = 0.65 if weekday in (5, 6) else 1.0
             trend = 1 + (index / max(days - 1, 1)) * 0.25  # tren naik perlahan
             weights.append(base * trend * rng.uniform(0.82, 1.2))

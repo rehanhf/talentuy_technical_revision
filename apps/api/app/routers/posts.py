@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -11,7 +11,7 @@ from app.deps import get_current_user
 from app.filters import FilterSet, apply_saved_query, filter_params, filtered_query
 from app.meta import build_meta
 from app.models import Post, PostAnalysis, Topic, User
-from app.schemas import PostListResponse, PostOut
+from app.schemas import PostListResponse, PostOut, PostThreadOut
 from app.search.sql import get_search_provider
 
 router = APIRouter(prefix="/posts", tags=["posts"])
@@ -49,6 +49,8 @@ def _to_post_out(row) -> PostOut:
         sentiment_confidence=analysis.sentiment_confidence,
         intent_confidence=analysis.intent_confidence,
         model_version=analysis.model_version,
+        induk_id=post.induk_id,
+        is_reply=bool(post.induk_id or post.induk_external_id),
     )
 
 
@@ -105,3 +107,33 @@ def get_post(
     if post.analysis is None:
         raise HTTPException(status_code=409, detail="Post belum dianalisis.")
     return _to_post_out((post, post.analysis))
+
+
+@router.get("/{post_id}/thread", response_model=PostThreadOut)
+def get_post_thread(
+    post_id: str,
+    db: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
+) -> PostThreadOut:
+    """Induk dan balasan tersimpan dari satu post (yang belum dihapus)."""
+    post = db.get(Post, post_id)
+    if post is None or post.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Post tidak ditemukan.")
+
+    induk = None
+    if post.induk_id:
+        parent = db.get(Post, post.induk_id)
+        if parent is not None and parent.deleted_at is None and parent.analysis is not None:
+            induk = _to_post_out((parent, parent.analysis))
+
+    replies = db.scalars(
+        select(Post)
+        .where(Post.induk_id == post.id, Post.deleted_at.is_(None))
+        .order_by(Post.created_at_source)
+        .limit(100)
+    ).all()
+    return PostThreadOut(
+        induk=induk,
+        induk_external_id=post.induk_external_id,
+        balasan=[_to_post_out((r, r.analysis)) for r in replies if r.analysis is not None],
+    )

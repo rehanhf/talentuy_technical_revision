@@ -245,7 +245,7 @@ Koreksi admin menghasilkan `model_version` bersuffiks `+koreksi-manual` dan conf
 |---|---|
 | Skor engagement | `like×1 + repost×2 + reply×1,5 + quote×1,5` (bobot dikonfigurasi di `config.py`) |
 | Perubahan periode | `(sekarang − sebelumnya) / sebelumnya × 100` — **`null` bila pembanding nol**, ditulis "Tidak dapat dibandingkan" |
-| Deteksi puncak | Moving average 7 hari + z-score |
+| Lonjakan isu | Per kelompok isu per minggu: volume ≥ 10 post **dan** naik ≥ 50% di atas rata-rata 4 minggu sebelumnya (keduanya parameter `SPIKE_*`) |
 | Relevansi | `text_rank × 0,6 + relevance_score × 0,4`. Komentar kode: "Relevansi dasar: kekuatan sinyal tekstual, bukan popularitas akun." Dijaga tes `test_relevance_not_dominated_by_engagement` |
 | Skor perhatian | Volume + momentum kenaikan + porsi sentimen negatif |
 | Indeks tren | Titik pertama non-nol dinormalisasi jadi 100 |

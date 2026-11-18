@@ -103,6 +103,11 @@ class CsvImportConnector(SocialDataConnector):
                         url=(str(row.get("url") or "").strip() or None),
                         is_synthetic=is_synthetic,
                         source="import",
+                        # Opsional: ID post induk bila baris ini adalah balasan.
+                        in_reply_to_external_id=(
+                            str(row.get("induk_external_id") or row.get("in_reply_to_id") or "").strip()
+                            or None
+                        ),
                         **counts,
                     )
                 )

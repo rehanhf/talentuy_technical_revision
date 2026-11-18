@@ -25,6 +25,9 @@ class RawPost:
     url: str | None = None
     is_synthetic: bool = True
     source: str = "demo"
+    # ID post di X yang dibalas (None bila bukan balasan). Hanya ID; username
+    # akun yang dibalas tidak pernah diambil.
+    in_reply_to_external_id: str | None = None
     extra: dict = field(default_factory=dict)
 
 
@@ -41,6 +44,12 @@ class SocialDataConnector(ABC):
     @abstractmethod
     def fetch(self, **kwargs) -> list[RawPost]:
         """Ambil data mentah dari sumber."""
+
+    supports_replies: bool = False
+
+    def fetch_replies(self, parent_external_id: str, *, max_results: int = 20) -> list[RawPost]:
+        """Ambil balasan publik untuk satu post. Connector tanpa dukungan → kosong."""
+        return []
 
     def status(self) -> dict:
         return {

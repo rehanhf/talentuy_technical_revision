@@ -96,7 +96,9 @@ personal yang dapat langsung mengidentifikasi seseorang. Nama ERD: KIRIMAN.
 | `url` | `tautan` | String(400), nullable | Tautan post; URL X disimpan sebagai `https://x.com/i/status/{id}` tanpa username |
 | `is_synthetic` | `sintetis` *(usulan)* | Boolean | `true` untuk data demo |
 | `ingested_at` | `waktu_masuk` | DateTime | Waktu masuk sistem |
-| `deleted_at` | `waktu_dihapus` *(usulan)* | DateTime, nullable, indeks | Soft delete; dikecualikan seluruh query |
+| `deleted_at` | `waktu_dihapus` *(usulan)* | DateTime, nullable, indeks | Soft delete; dikecualikan seluruh query. Post nyata yang ditandai terhapus dihapus permanen pada putaran retensi berikutnya. Retensi sendiri menghapus permanen post nyata yang tidak relevan 14 hari setelah masuk dan yang relevan tepat 90 hari setelah masuk |
+| `induk_id` | `induk_id` | String(36), nullable, indeks, FK → `posts.id` (`ON DELETE SET NULL`) | Post yang dibalas, bila post ini balasan dan induknya tersimpan |
+| `induk_external_id` | `induk_id_eksternal` *(usulan)* | String(80), nullable, indeks | ID post induk di X; dipakai untuk menautkan balasan yang masuk sebelum induknya |
 
 Indeks gabungan: `ix_posts_source_created (source, created_at_source)`.
 

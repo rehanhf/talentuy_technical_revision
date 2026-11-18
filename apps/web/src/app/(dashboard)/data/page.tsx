@@ -57,6 +57,7 @@ const ACTION_LABEL: Record<string, string> = {
   "data.fetch_live": "Tarik data X API",
   "taxonomy.update": "Ubah taxonomy",
   "label.correct": "Koreksi label",
+  "label.review": "Tandai sudah diperiksa",
   "preset.create": "Tambah preset kata kunci",
   "preset.update": "Ubah preset kata kunci",
   "preset.delete": "Hapus preset kata kunci",
@@ -66,7 +67,35 @@ const ACTION_LABEL: Record<string, string> = {
   "report.create": "Buat laporan",
   "report.export": "Ekspor laporan",
   "report.delete": "Hapus laporan",
+  "retention.run": "Retensi data otomatis",
 };
+
+const LABEL_FIELD_NAME: Record<string, string> = {
+  topic_slug: "Topik",
+  sentiment_label: "Sentimen",
+  intent_label: "Intent",
+  job_role: "Pekerjaan",
+  needs_review: "Perlu ditinjau",
+};
+
+/** Nilai sebelum → sesudah pada entri audit koreksi label. */
+function LabelChangeList({ detail }: { detail: Record<string, unknown> | null }) {
+  const before = (detail?.before ?? {}) as Record<string, unknown>;
+  const after = (detail?.after ?? {}) as Record<string, unknown>;
+  const fields = Array.isArray(detail?.fields) ? (detail.fields as string[]) : [];
+  if (fields.length === 0) return null;
+  const show = (value: unknown) =>
+    value === null || value === undefined ? "tanpa label" : typeof value === "boolean" ? (value ? "ya" : "tidak") : String(value);
+  return (
+    <ul className="mt-1 space-y-0.5">
+      {fields.map((field) => (
+        <li key={field} className="text-[11px] text-ink">
+          {LABEL_FIELD_NAME[field] ?? field}: {show(before[field])} → {show(after[field])}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function QualityStat({
   label,
@@ -198,13 +227,7 @@ export default function DataSettingsPage() {
     try {
       const result = await importPublicX.mutateAsync(publicXUrl.trim());
       setPublicXResult(result);
-      setToast({
-        message:
-          result.records_processed > 0
-            ? "Post X nyata berhasil disimpan dan dianalisis."
-            : "Post tersebut sudah pernah disimpan.",
-        tone: "success",
-      });
+      setToast({ message: "Post X nyata berhasil disimpan dan dianalisis.", tone: "success" });
     } catch (caught) {
       setPublicXError(
         caught instanceof ApiError ? caught.userMessage : "Post X tidak dapat diimpor.",
@@ -391,9 +414,7 @@ export default function DataSettingsPage() {
                   )}
                   {publicXResult && (
                     <p className="rounded-lg border border-line bg-surface-muted px-3 py-2 text-xs text-ink">
-                      {publicXResult.records_processed > 0
-                        ? "1 post baru tersimpan sebagai data nyata dan sudah dianalisis."
-                        : "Post sudah ada; data duplikat tidak dibuat."}
+                      1 post baru tersimpan sebagai data nyata dan sudah dianalisis.
                     </p>
                   )}
                 </form>
@@ -922,6 +943,9 @@ export default function DataSettingsPage() {
                     <td className="py-2 text-muted">
                       {entry.entity}
                       {entry.entity_id ? ` · ${entry.entity_id.slice(0, 8)}` : ""}
+                      {(entry.action === "label.correct" || entry.action === "label.review") && (
+                        <LabelChangeList detail={entry.detail} />
+                      )}
                     </td>
                   </tr>
                 ))}

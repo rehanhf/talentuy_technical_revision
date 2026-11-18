@@ -72,7 +72,9 @@ Setiap response analitik memuat blok `meta`:
 | Method | Path | Akses | Keterangan |
 | --- | --- | --- | --- |
 | GET | `/posts` | login | `sort=relevance\|recent\|engagement`, `page`, `page_size` (5–100) |
-| GET | `/posts/{post_id}` | login | Detail satu post |
+| GET | `/posts/{post_id}` | login | Detail satu post (termasuk `induk_id` dan `is_reply`) |
+| GET | `/posts/{post_id}/thread` | login | `{ induk, induk_external_id, balasan[] }`: post yang dibalas dan balasan tersimpan |
+| POST | `/posts/{post_id}/review` | login wajib | Tandai post bertanda `needs_review` sebagai sudah diperiksa; label tidak diubah. Audit `label.review` (`before`/`after`/`confirmed_labels`). 409 bila post tidak bertanda |
 | PATCH | `/posts/{post_id}/labels` | login wajib | Koreksi label manual (human-in-the-loop); nilai label divalidasi terhadap taxonomy |
 
 Setiap post memuat `explanation`, yaitu dasar klasifikasi untuk keempat label
@@ -140,8 +142,8 @@ Kunci grafik yang tersedia: `volume`, `topics`, `sentiment`, `job_roles`,
 | PATCH/DELETE | `/data/keyword-presets/{id}` | login wajib | Ubah atau hapus preset; tercatat di audit log |
 | GET | `/data/quality` | login | Cakupan analisis, porsi belum terklasifikasi, perlu ditinjau |
 | POST | `/data/import` | login wajib | `multipart/form-data` berisi `file` (CSV/JSON, maks. 8 MB) |
-| POST | `/data/import-public-x` | login wajib | Impor satu post X publik dari body JSON `{ "url": "https://x.com/.../status/..." }` |
-| POST | `/data/fetch-live` | login wajib | Tarik post nyata via X API resmi: `query` (wajib), `days` (1–7), `max_results` (10–100) |
+| POST | `/data/import-public-x` | login wajib | Impor satu post X publik dari body JSON `{ "url": "https://x.com/.../status/..." }`. **409** bila post sudah pernah dikirim (diperiksa sebelum layanan X dihubungi) |
+| POST | `/data/fetch-live` | login wajib | Tarik post nyata via provider terpilih: `query` (wajib), `days` (1–7), `max_results` (10–100), `include_replies` (bawaan `true`) |
 | POST | `/data/seed` | `ENABLE_SYSTEM_OPS=true` | `count` (100–5000), `days` (7–365), `reset` |
 | POST | `/data/reanalyze` | `ENABLE_SYSTEM_OPS=true` | Jalankan ulang pipeline NLP untuk seluruh post |
 | GET | `/data/runs` | login | Riwayat proses data (`limit` 1–100) |
@@ -158,9 +160,27 @@ ditandai `is_synthetic = false` dan `source = "x_api"`. Endpoint menolak dengan:
 Catatan: endpoint pencarian resmi yang dipakai (`tweets/search/recent`) hanya
 menjangkau 7 hari terakhir dan maksimal 100 post per permintaan.
 
+Balasan: bila `include_replies=true`, setelah pencarian utama server mengambil
+balasan untuk `REPLY_FETCH_MAX_PARENTS` post dengan `reply_count` terbanyak
+(maks. `REPLY_FETCH_MAX_PER_PARENT` per post). twitterapi.io memakai
+`/twitter/tweet/replies`; X API resmi memakai `conversation_id:{id} is:reply`.
+Setiap balasan disimpan sebagai post biasa dengan `induk_id` menunjuk induknya;
+hanya ID induk yang diambil, bukan username akun yang dibalas. Kegagalan
+mengambil balasan tidak membatalkan impor post utama.
+
 Kolom wajib berkas impor: `external_post_id`, `text`, `created_at_source`.
 Kolom opsional: `like_count`, `repost_count`, `reply_count`, `quote_count`,
-`language`, `url`. Contoh berkas: `data/synthetic/contoh_impor.csv`.
+`language`, `url`, `induk_external_id` (ID post induk bila baris adalah
+balasan). Contoh berkas: `data/synthetic/contoh_impor.csv`.
+
+Respons `/dashboard/overview`, `/dashboard/trends`, dan `/dashboard/topics/{slug}`
+memuat `peaks` (lonjakan isu mingguan: `week_start`, `week_end`, `topic_slug`,
+`topic_name`, `count`, `baseline`, `previous_weeks`, `delta_percent`) dan
+`spike_rule` (`min_posts`, `min_increase_percent`, `baseline_weeks`,
+`description`) yang berasal dari konfigurasi server.
+
+Audit `label.correct` menyimpan `{ before, after, fields }`: nilai setiap label
+yang berubah sebelum dan sesudah koreksi; waktunya ada di `created_at`.
 
 ## 8. Sistem
 

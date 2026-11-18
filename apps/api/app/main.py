@@ -9,7 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app import __version__
+from app import __version__, retention
 from app.config import settings
 from app.database import Base, engine
 from app.routers import auth, dashboard, data, insights, posts, queries, reports, system
@@ -45,7 +45,13 @@ app.add_middleware(
 def on_startup() -> None:
     """Buat skema bila belum ada agar aplikasi bisa jalan dari clean setup."""
     Base.metadata.create_all(bind=engine)
+    retention.start_scheduler()
     logger.info("TalentPulse API siap. Mode data: %s", settings.effective_source_mode)
+
+
+@app.on_event("shutdown")
+def on_shutdown() -> None:
+    retention.stop_scheduler()
 
 
 @app.exception_handler(RequestValidationError)

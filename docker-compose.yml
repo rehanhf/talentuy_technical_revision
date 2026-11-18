@@ -43,6 +43,19 @@ services:
       TWITTERAPI_IO_KEY: ${TWITTERAPI_IO_KEY:-}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-TalentPulse123!}
       ENABLE_SYSTEM_OPS: ${ENABLE_SYSTEM_OPS:-false}
+      # Aturan lonjakan isu mingguan (Tujuan 3).
+      SPIKE_MIN_POSTS: ${SPIKE_MIN_POSTS:-10}
+      SPIKE_MIN_INCREASE_PERCENT: ${SPIKE_MIN_INCREASE_PERCENT:-50}
+      SPIKE_BASELINE_WEEKS: ${SPIKE_BASELINE_WEEKS:-4}
+      # Retensi data nyata: tidak relevan dihapus 14 hari setelah masuk, relevan tepat 90 hari.
+      RETENTION_ENABLED: ${RETENTION_ENABLED:-true}
+      RETENTION_RAW_DAYS: ${RETENTION_RAW_DAYS:-90}
+      RETENTION_IRRELEVANT_DAYS: ${RETENTION_IRRELEVANT_DAYS:-14}
+      RETENTION_RELEVANCE_MIN_SCORE: ${RETENTION_RELEVANCE_MIN_SCORE:-0}
+      # Balasan yang ikut diambil saat menarik data live.
+      REPLY_FETCH_ENABLED: ${REPLY_FETCH_ENABLED:-true}
+      REPLY_FETCH_MAX_PARENTS: ${REPLY_FETCH_MAX_PARENTS:-5}
+      REPLY_FETCH_MAX_PER_PARENT: ${REPLY_FETCH_MAX_PER_PARENT:-20}
     ports:
       # Browser memakai /api lewat frontend; port ini hanya untuk debug lokal.
       - "127.0.0.1:${API_PORT:-8000}:8000"

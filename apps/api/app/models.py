@@ -93,9 +93,22 @@ class Post(Base):
     is_synthetic: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     ingested_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, index=True)
+    # Balasan: induk_id menunjuk post yang dibalas (bila induknya tersimpan).
+    # induk_external_id menyimpan ID post induk di X sehingga tautan dapat
+    # dibentuk belakangan ketika induk baru diimpor setelah balasannya.
+    induk_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("posts.id", ondelete="SET NULL"), index=True
+    )
+    induk_external_id: Mapped[str | None] = mapped_column(String(80), index=True)
 
     analysis: Mapped[PostAnalysis] = relationship(
         "PostAnalysis", back_populates="post", uselist=False, cascade="all, delete-orphan"
+    )
+    induk: Mapped[Post | None] = relationship(
+        "Post", remote_side="Post.id", foreign_keys=[induk_id], back_populates="balasan"
+    )
+    balasan: Mapped[list[Post]] = relationship(
+        "Post", foreign_keys=[induk_id], back_populates="induk", passive_deletes=True
     )
 
     __table_args__ = (Index("ix_posts_source_created", "source", "created_at_source"),)

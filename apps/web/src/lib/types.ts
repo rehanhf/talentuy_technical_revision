@@ -34,12 +34,29 @@ export interface SeriesPoint {
   indexed?: number;
 }
 
+/** Lonjakan mingguan satu kelompok isu (aturan dua ambang, lihat SpikeRule). */
 export interface Peak {
+  /** Sama dengan week_start; dipakai untuk menandai titik pada grafik. */
   date: string;
+  week_start: string;
+  week_end: string;
+  is_partial_week: boolean;
+  topic_slug: string;
+  topic_name: string;
+  color: string;
   count: number;
+  /** Rata-rata volume pada minggu-minggu pembanding. */
   baseline: number;
-  z_score: number | null;
+  previous_weeks: number[];
+  /** null bila rata-rata pembanding nol (isu muncul dari nol). */
   delta_percent: number | null;
+}
+
+export interface SpikeRule {
+  min_posts: number;
+  min_increase_percent: number;
+  baseline_weeks: number;
+  description: string;
 }
 
 export interface TopicRow {
@@ -131,6 +148,7 @@ export interface OverviewResponse {
   kpis: OverviewKpis;
   volume_series: SeriesPoint[];
   peaks: Peak[];
+  spike_rule: SpikeRule;
   topics: TopicRow[];
   sentiment_by_role: SentimentByRole[];
   heatmap: Heatmap;
@@ -154,6 +172,7 @@ export interface TrendsResponse {
   breakdown_type: string;
   breakdown: Array<TopicRow | LabelCount>;
   peaks: Peak[];
+  spike_rule: SpikeRule;
   annotations: Array<{ date: string; label: string; note: string }>;
   meta: ResponseMeta;
 }
@@ -188,6 +207,7 @@ export interface TopicDetailResponse {
   topic: TopicRow | null;
   series: SeriesPoint[];
   peaks: Peak[];
+  spike_rule: SpikeRule;
   sentiment: LabelCount[];
   intents: LabelCount[];
   job_roles: LabelCount[];
@@ -233,6 +253,17 @@ export interface Post {
   sentiment_confidence: number | null;
   intent_confidence: number | null;
   model_version: string | null;
+  /** Post yang dibalas, bila induknya tersimpan. */
+  induk_id?: string | null;
+  /** True bila post ini balasan, walau induknya belum diimpor. */
+  is_reply?: boolean;
+}
+
+/** Induk dan balasan tersimpan dari satu post. */
+export interface PostThread {
+  induk: Post | null;
+  induk_external_id: string | null;
+  balasan: Post[];
 }
 
 export interface PostListResponse {
@@ -394,7 +425,22 @@ export interface IngestionRun {
   error_summary: string;
 }
 
+export interface PrivacySummary {
+  legal_basis: string;
+  data_collected: string;
+  pseudonymisation: string[];
+  retention: {
+    relevant_days: number;
+    irrelevant_days: number;
+    check_interval_hours: number;
+    relevance_rule: string;
+    applies_to: string;
+    enabled: boolean;
+  };
+}
+
 export interface MethodologyResponse {
+  privacy?: PrivacySummary;
   data_source_mode: "demo" | "live";
   is_synthetic: boolean;
   collection: string;

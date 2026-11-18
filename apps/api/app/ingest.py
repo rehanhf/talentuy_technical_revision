@@ -9,7 +9,7 @@ from app.timeutil import utcnow
 from app.connectors.base import RawPost
 from app.models import IngestionRun, Post, PostAnalysis, Topic
 from app.nlp.pipeline import pipeline
-from app.privacy import anonymize_post_url, hash_author_id
+from app.privacy import anonymize_post_url, hash_author_id, mask_mentions
 
 
 def topic_id_map(db: Session) -> dict[str, str]:
@@ -41,6 +41,42 @@ def analyze_and_attach(db: Session, post: Post, topics: dict[str, str]) -> PostA
     analysis.analyzed_at = utcnow()
     post.analysis = analysis
     return analysis
+
+
+def link_replies(db: Session, external_ids: list[str]) -> int:
+    """Isi ``induk_id`` untuk balasan yang induknya sudah tersimpan.
+
+    Berlaku dua arah untuk post pada batch ini: balasan yang induknya sudah ada,
+    dan balasan lama yang induknya baru saja diimpor. Mengembalikan jumlah
+    tautan yang dibentuk.
+    """
+    if not external_ids:
+        return 0
+    batch = set(external_ids)
+    pending = db.scalars(
+        select(Post).where(
+            Post.induk_id.is_(None),
+            Post.induk_external_id.is_not(None),
+            (Post.external_post_id.in_(batch)) | (Post.induk_external_id.in_(batch)),
+        )
+    ).all()
+    if not pending:
+        return 0
+    parent_ids = dict(
+        db.execute(
+            select(Post.external_post_id, Post.id).where(
+                Post.external_post_id.in_({p.induk_external_id for p in pending})
+            )
+        ).all()
+    )
+    linked = 0
+    for reply in pending:
+        parent_id = parent_ids.get(reply.induk_external_id)
+        if parent_id and parent_id != reply.id:
+            reply.induk_id = parent_id
+            linked += 1
+    db.flush()
+    return linked
 
 
 def ingest_posts(
@@ -82,7 +118,8 @@ def ingest_posts(
             post = Post(
                 external_post_id=raw.external_post_id,
                 source=raw.source or source,
-                text=raw.text,
+                # @handle akun lain di teks disamarkan menjadi @pengguna.
+                text=mask_mentions(raw.text),
                 created_at_source=raw.created_at_source,
                 language=raw.language,
                 # Semua connector melewati titik ini: username tidak pernah disimpan.
@@ -94,6 +131,7 @@ def ingest_posts(
                 url=anonymize_post_url(raw.url),
                 is_synthetic=raw.is_synthetic,
                 ingested_at=utcnow(),
+                induk_external_id=raw.in_reply_to_external_id or None,
             )
             db.add(post)
             db.flush()
@@ -102,6 +140,8 @@ def ingest_posts(
             processed += 1
         except Exception as exc:  # pragma: no cover - jaring pengaman
             errors.append(f"{raw.external_post_id}: {exc}")
+
+    link_replies(db, [p.external_post_id for p in raw_posts])
 
     run.records_processed = processed
     run.records_failed = len(errors)

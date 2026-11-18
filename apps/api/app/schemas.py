@@ -128,6 +128,10 @@ class PostOut(BaseModel):
     sentiment_confidence: float | None = None
     intent_confidence: float | None = None
     model_version: str | None = None
+    # Balasan: induk_id = post yang dibalas (bila tersimpan); is_reply juga true
+    # bila induknya belum diimpor (hanya ID induk di X yang diketahui).
+    induk_id: str | None = None
+    is_reply: bool = False
 
     @field_validator("url")
     @classmethod
@@ -135,6 +139,14 @@ class PostOut(BaseModel):
         # Jaring pengaman untuk baris lama yang belum dimigrasi: username di
         # URL post X tidak pernah dikirim ke frontend.
         return anonymize_post_url(value)
+
+
+class PostThreadOut(BaseModel):
+    """Post induk (bila tersimpan) dan balasan tersimpan untuk satu post."""
+
+    induk: PostOut | None = None
+    induk_external_id: str | None = None
+    balasan: list[PostOut] = []
 
 
 LabelField = Literal["topic", "sentiment", "intent", "job_role"]

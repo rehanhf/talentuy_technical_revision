@@ -10,13 +10,14 @@ from __future__ import annotations
 import argparse
 import sys
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.timeutil import utcnow
 from app.config import settings
 from app.connectors.mock_x import MockXConnector
 from app.database import Base, SessionLocal, engine
+from app.deps import write_audit
 from app.ingest import ingest_posts
 from app.models import (
     AuditLog,
@@ -32,7 +33,7 @@ from app.models import (
     UsabilityEvent,
     User,
 )
-from app.security import hash_password
+from app.security import hash_password, verify_password
 from app.taxonomy import KEYWORD_PRESET_SEED, TOPIC_SEED
 
 DEMO_USERS = [
@@ -148,6 +149,9 @@ def seed_users(db: Session) -> dict[str, User]:
             )
             db.add(user)
             db.flush()
+        elif not verify_password(settings.demo_password, user.password_hash):
+            # DEMO_PASSWORD di .env diganti setelah akun dibuat: samakan kembali.
+            user.password_hash = hash_password(settings.demo_password)
         users[role] = user
     db.commit()
     return users
@@ -198,8 +202,24 @@ def seed_monitors(db: Session, queries: list[SourceQuery], owner: User) -> None:
     db.commit()
 
 
+def reseed_demo_posts(db: Session) -> int:
+    """Hapus hanya post sintetis (beserta analisisnya) agar dapat dibangkitkan ulang
+    berakhir hari ini. Data nyata, insight, laporan, akun, dan audit log tetap."""
+    demo_ids = list(db.scalars(select(Post.id).where(Post.is_synthetic.is_(True))))
+    for start in range(0, len(demo_ids), 500):
+        chunk = demo_ids[start : start + 500]
+        db.execute(update(Post).where(Post.induk_id.in_(chunk)).values(induk_id=None))
+        db.execute(delete(PostAnalysis).where(PostAnalysis.post_id.in_(chunk)))
+        db.execute(delete(Post).where(Post.id.in_(chunk)))
+    db.commit()
+    return len(demo_ids)
+
+
 def seed_posts(db: Session, count: int, days: int) -> int:
-    existing = int(db.scalar(select(func.count(Post.id))) or 0)
+    # Hanya post sintetis yang dihitung: data nyata tidak mengurangi jumlah demo.
+    existing = int(
+        db.scalar(select(func.count(Post.id)).where(Post.is_synthetic.is_(True))) or 0
+    )
     if existing >= count:
         return 0
     connector = MockXConnector(random_state=settings.seed_random_state)
@@ -208,12 +228,20 @@ def seed_posts(db: Session, count: int, days: int) -> int:
     return run.records_processed
 
 
-def run_seed(reset: bool = False, count: int | None = None, days: int | None = None) -> dict:
+def run_seed(
+    reset: bool = False,
+    count: int | None = None,
+    days: int | None = None,
+    reseed_demo: bool = False,
+) -> dict:
     create_schema()
     started = utcnow()
+    removed_demo = 0
     with SessionLocal() as db:
         if reset:
             reset_data(db)
+        elif reseed_demo:
+            removed_demo = reseed_demo_posts(db)
         seed_topics(db)
         seed_keyword_presets(db)
         users = seed_users(db)
@@ -223,8 +251,13 @@ def run_seed(reset: bool = False, count: int | None = None, days: int | None = N
             db, count or settings.seed_post_count, days or settings.seed_days
         )
         total_posts = int(db.scalar(select(func.count(Post.id))) or 0)
+        if reseed_demo:
+            write_audit(db, None, "data.seed", "posts", "",
+                        {"mode": "reseed_demo", "removed": removed_demo, "inserted": inserted})
+            db.commit()
 
     return {
+        "removed_demo_posts": removed_demo,
         "inserted_posts": inserted,
         "total_posts": total_posts,
         "users": [email for _, email, _ in DEMO_USERS],
@@ -234,13 +267,24 @@ def run_seed(reset: bool = False, count: int | None = None, days: int | None = N
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Seed data demo TalentPulse")
-    parser.add_argument("--reset", action="store_true", help="Hapus data lama lebih dulu")
+    parser.add_argument(
+        "--reset", action="store_true",
+        help="Hapus SELURUH data (termasuk data nyata, insight, akun, audit) lebih dulu",
+    )
+    parser.add_argument(
+        "--reseed-demo", action="store_true",
+        help="Ganti hanya post demo sintetis agar berakhir hari ini; data lain tetap",
+    )
     parser.add_argument("--count", type=int, default=None, help="Jumlah post sintetis")
     parser.add_argument("--days", type=int, default=None, help="Rentang hari")
     args = parser.parse_args()
 
-    summary = run_seed(reset=args.reset, count=args.count, days=args.days)
+    summary = run_seed(
+        reset=args.reset, count=args.count, days=args.days, reseed_demo=args.reseed_demo
+    )
     print("Seed selesai.")
+    if args.reseed_demo:
+        print(f"  Post demo lama : {summary['removed_demo_posts']} dihapus")
     print(f"  Post baru      : {summary['inserted_posts']}")
     print(f"  Total post     : {summary['total_posts']}")
     print(f"  Akun demo      : {', '.join(summary['users'])}")

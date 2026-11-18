@@ -15,7 +15,11 @@ from app.connectors.official_x import (
     available_connectors,
 )
 from app.connectors.twitterapi_io import TwitterApiIoConnector
-from app.connectors.x_public_embed import PublicPostImportError, XPublicEmbedConnector
+from app.connectors.x_public_embed import (
+    PublicPostImportError,
+    XPublicEmbedConnector,
+    parse_x_post_url,
+)
 from app.database import get_db
 from app.deps import get_current_user, require_system_ops, write_audit
 from app.ingest import ingest_posts, reanalyze_all
@@ -289,7 +293,21 @@ def import_public_x(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> ImportResult:
-    """Impor satu post X yang URL publiknya sudah diketahui."""
+    """Impor satu post X yang URL publiknya sudah diketahui.
+
+    Tautan ke post yang sudah tersimpan ditolak (409) sebelum layanan X dihubungi,
+    agar pengirim tahu kirimannya tidak diproses.
+    """
+    try:
+        _, post_id, _ = parse_x_post_url(payload.url)
+    except PublicPostImportError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if db.scalar(select(Post.id).where(Post.external_post_id == post_id)) is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Tautan ini sudah pernah dikirim; post tersebut sudah tersimpan dan tidak diproses ulang.",
+        )
+
     connector = XPublicEmbedConnector()
     try:
         raw_posts = connector.fetch(url=payload.url)
@@ -356,6 +374,9 @@ def fetch_live(
     query: str = Query(..., min_length=2, max_length=300),
     days: int = Query(7, ge=1, le=7, description="X API recent search hanya 7 hari terakhir."),
     max_results: int = Query(20, ge=10, le=100),
+    include_replies: bool = Query(
+        True, description="Ambil juga balasan untuk post dengan balasan terbanyak."
+    ),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> ImportResult:
@@ -377,15 +398,42 @@ def fetch_live(
         )
 
     try:
-        raw_posts = connector.fetch(query=query, max_results=max_results, days=days)
+        raw_posts = list(connector.fetch(query=query, max_results=max_results, days=days))
     except ConnectorUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    # Balasan: diambil untuk post dengan reply_count terbanyak lalu ditautkan
+    # ke induknya lewat induk_id. Kegagalan di tahap ini tidak membatalkan
+    # impor post utama; pesannya dicatat pada ingestion run.
+    reply_errors: list[str] = []
+    replies_fetched = 0
+    if include_replies and settings.reply_fetch_enabled and connector.supports_replies:
+        seen = {p.external_post_id for p in raw_posts}
+        parents = sorted(
+            (p for p in raw_posts if p.reply_count > 0 and not p.in_reply_to_external_id),
+            key=lambda p: p.reply_count,
+            reverse=True,
+        )[: max(0, settings.reply_fetch_max_parents)]
+        for parent in parents:
+            try:
+                replies = connector.fetch_replies(
+                    parent.external_post_id, max_results=settings.reply_fetch_max_per_parent
+                )
+            except ConnectorUnavailable as exc:
+                reply_errors.append(f"balasan {parent.external_post_id}: {exc}")
+                continue
+            for reply in replies:
+                if reply.external_post_id not in seen:
+                    raw_posts.append(reply)
+                    seen.add(reply.external_post_id)
+                    replies_fetched += 1
 
     run = ingest_posts(
         db,
         raw_posts,
         source="twitterapi_io" if settings.x_api_provider == "twitterapi_io" else "x_api",
         triggered_by=user.id,
+        extra_errors=reply_errors,
         records_received=len(raw_posts),
     )
     write_audit(
@@ -395,7 +443,8 @@ def fetch_live(
         "ingestion_run",
         run.id,
         # Query pencarian dicatat sebagai jejak audit; tidak ada data pribadi.
-        {"query": query, "days": days, "provider": settings.x_api_provider, "processed": run.records_processed},
+        {"query": query, "days": days, "provider": settings.x_api_provider,
+         "processed": run.records_processed, "replies_fetched": replies_fetched},
     )
     db.commit()
 

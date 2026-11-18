@@ -1,4 +1,4 @@
-"""Uji logika analitik: KPI, periode pembanding, pembagi nol, dan peak."""
+"""Uji logika analitik: KPI, periode pembanding, pembagi nol, dan lonjakan isu."""
 
 from __future__ import annotations
 
@@ -73,20 +73,61 @@ def test_topic_shares_sum_to_about_hundred(db):
     assert topics == sorted(topics, key=lambda t: -t["count"])
 
 
-def test_peak_detection_flags_only_above_baseline():
-    flat = [{"date": f"2026-01-{d:02d}", "count": 10} for d in range(1, 15)]
-    assert analytics.detect_peaks(flat) == []
+def test_spike_rule_requires_both_thresholds():
+    """Lonjakan = volume >= ambang post DAN kenaikan >= ambang % atas rata-rata 4 minggu."""
+    # 12 post, rata-rata 4 minggu 6 -> naik 100%: kedua ambang terpenuhi.
+    assert analytics.evaluate_issue_week(12, [6, 6, 6, 6])[0] is True
+    # Kenaikan 100% tetapi hanya 8 post: gagal ambang volume.
+    assert analytics.evaluate_issue_week(8, [4, 4, 4, 4])[0] is False
+    # 40 post tetapi hanya naik 33%: gagal ambang persentase.
+    assert analytics.evaluate_issue_week(40, [30, 30, 30, 30])[0] is False
+    # Tepat di ambang (10 post, naik tepat 50%) dihitung sebagai lonjakan.
+    is_spike, baseline, increase = analytics.evaluate_issue_week(15, [10, 10, 10, 10])
+    assert is_spike is True and baseline == 10 and increase == 50.0
+    # Isu yang muncul dari nol: kenaikan tidak terdefinisi tetapi lolos bila volume cukup.
+    assert analytics.evaluate_issue_week(10, [0, 0, 0, 0]) == (True, 0.0, None)
+    assert analytics.evaluate_issue_week(9, [0, 0, 0, 0])[0] is False
 
-    spiky = list(flat)
-    spiky[12] = {"date": "2026-01-13", "count": 90}
-    peaks = analytics.detect_peaks(spiky)
-    assert peaks and peaks[0]["date"] == "2026-01-13"
-    assert peaks[0]["count"] == 90
+
+def test_spike_rule_values_come_from_config(monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "spike_min_posts", 20)
+    monkeypatch.setattr(settings, "spike_min_increase_percent", 200.0)
+    assert analytics.evaluate_issue_week(12, [6, 6, 6, 6])[0] is False
+    assert analytics.evaluate_issue_week(30, [10, 10, 10, 10])[0] is True
+    rule = analytics.spike_rule()
+    assert rule["min_posts"] == 20 and rule["min_increase_percent"] == 200.0
+    assert rule["baseline_weeks"] == 4
 
 
-def test_peak_detection_needs_minimum_history():
-    short = [{"date": f"2026-01-{d:02d}", "count": 5} for d in range(1, 5)]
-    assert analytics.detect_peaks(short) == []
+def test_issue_spikes_are_per_topic_and_satisfy_rule(db):
+    from app.config import settings
+
+    spikes = analytics.detect_issue_spikes(db, make_filters(days=60))
+    for spike in spikes:
+        assert spike["topic_slug"] and spike["topic_name"]
+        assert spike["count"] >= settings.spike_min_posts
+        assert len(spike["previous_weeks"]) == settings.spike_baseline_weeks
+        assert spike["delta_percent"] is None or (
+            spike["delta_percent"] >= settings.spike_min_increase_percent
+        )
+        # Minggu dimulai hari Senin.
+        assert datetime.fromisoformat(spike["week_start"]).weekday() == 0
+
+
+def test_issue_spikes_ignore_weeks_without_full_history(db):
+    """Minggu yang pembandingnya jatuh sebelum data pertama tidak dinilai."""
+    from sqlalchemy import func, select
+
+    from app.models import Post
+
+    earliest = db.scalar(select(func.min(Post.created_at_source)))
+    earliest_week = analytics.week_start(earliest.date())
+    filters = make_filters(days=400)
+    for spike in analytics.detect_issue_spikes(db, filters):
+        first_baseline = datetime.fromisoformat(spike["week_start"]).date() - timedelta(weeks=4)
+        assert first_baseline >= earliest_week
 
 
 def test_indexed_series_starts_at_hundred():

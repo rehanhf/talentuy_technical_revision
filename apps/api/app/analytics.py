@@ -6,13 +6,13 @@ hardcoded di frontend.
 
 from __future__ import annotations
 
-import math
 from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.timeutil import utcnow
 from app.filters import FilterSet, filtered_query
 from app.models import Post, PostAnalysis, Topic
@@ -20,7 +20,6 @@ from app.nlp.baseline import _STOPWORDS  # daftar stopword bersama
 from app.search.sql import get_search_provider
 
 MIN_TOPIC_POSTS = 5  # threshold "Topik Aktif"
-PEAK_Z_THRESHOLD = 1.5
 
 
 def percent_change(current: float, previous: float) -> float | None:
@@ -95,47 +94,127 @@ def indexed_series(series: list[dict]) -> list[dict]:
     return [{**p, "indexed": round(p["count"] / baseline * 100, 1)} for p in series]
 
 
-def detect_peaks(series: list[dict], window: int = 7) -> list[dict]:
-    """Deteksi lonjakan dengan moving average + z-score sederhana.
+def week_start(value: date) -> date:
+    """Senin pada minggu yang memuat tanggal tersebut (minggu ISO)."""
+    return value - timedelta(days=value.weekday())
 
-    Hasil dilabeli sebagai "lonjakan terdeteksi" tanpa klaim penyebab.
+
+def spike_rule() -> dict:
+    """Parameter aturan lonjakan yang sedang berlaku (dari konfigurasi)."""
+    return {
+        "min_posts": settings.spike_min_posts,
+        "min_increase_percent": settings.spike_min_increase_percent,
+        "baseline_weeks": settings.spike_baseline_weeks,
+        "description": (
+            f"Suatu kelompok isu dinyatakan melonjak pada suatu minggu bila volumenya "
+            f"minimal {settings.spike_min_posts} post dan naik minimal "
+            f"{settings.spike_min_increase_percent:g}% dibanding rata-rata "
+            f"{settings.spike_baseline_weeks} minggu sebelumnya."
+        ),
+    }
+
+
+def evaluate_issue_week(count: int, previous_weeks: list[int]) -> tuple[bool, float, float | None]:
+    """Terapkan aturan dua ambang pada satu kelompok isu untuk satu minggu.
+
+    Mengembalikan (melonjak, rata-rata pembanding, kenaikan persen). Bila
+    rata-rata pembanding nol, kenaikan tidak terdefinisi (None) dan ambang
+    persentase dianggap terlampaui karena isu muncul dari nol.
     """
-    counts = [p["count"] for p in series]
-    if len(counts) < window + 1:
-        return []
+    baseline = sum(previous_weeks) / len(previous_weeks) if previous_weeks else 0.0
+    increase = percent_change(count, baseline)
+    meets_volume = count >= settings.spike_min_posts
+    meets_increase = increase is None or increase >= settings.spike_min_increase_percent
+    return meets_volume and meets_increase, baseline, increase
 
-    peaks: list[dict] = []
-    for idx in range(window, len(counts)):
-        window_slice = counts[idx - window : idx]
-        mean = sum(window_slice) / window
-        variance = sum((c - mean) ** 2 for c in window_slice) / window
-        std = math.sqrt(variance)
-        if std == 0:
-            # Tanpa variasi, lonjakan hanya bermakna jika naik cukup besar.
-            if counts[idx] > mean * 1.5 and counts[idx] - mean >= 3:
-                peaks.append(
-                    {
-                        "date": series[idx]["date"],
-                        "count": counts[idx],
-                        "baseline": round(mean, 2),
-                        "z_score": None,
-                        "delta_percent": percent_change(counts[idx], mean),
-                    }
-                )
-            continue
-        z = (counts[idx] - mean) / std
-        if z >= PEAK_Z_THRESHOLD:
-            peaks.append(
-                {
-                    "date": series[idx]["date"],
-                    "count": counts[idx],
-                    "baseline": round(mean, 2),
-                    "z_score": round(z, 2),
-                    "delta_percent": percent_change(counts[idx], mean),
-                }
-            )
-    peaks.sort(key=lambda p: p["count"], reverse=True)
-    return peaks
+
+def detect_issue_spikes(db: Session, filters: FilterSet) -> list[dict]:
+    """Deteksi lonjakan mingguan per kelompok isu (topik).
+
+    Untuk setiap topik dan setiap minggu (Senin–Minggu) yang dimulai di dalam
+    periode filter, volume minggu itu dibandingkan dengan rata-rata
+    ``spike_baseline_weeks`` minggu sebelumnya. Lonjakan hanya dinilai bila
+    seluruh minggu pembanding berada di dalam rentang data yang tersedia, agar
+    awal dataset tidak terbaca sebagai lonjakan palsu. Filter lain (pekerjaan,
+    sentimen, kata kunci, jenis data) tetap berlaku.
+
+    Hasil bersifat deskriptif: "lonjakan terdeteksi", tanpa klaim penyebab.
+    """
+    baseline_weeks = max(1, settings.spike_baseline_weeks)
+    first_week = week_start(filters.date_from.date())
+    history_start = datetime.combine(
+        first_week - timedelta(weeks=baseline_weeks), datetime.min.time()
+    )
+
+    # Minggu paling awal yang memiliki data (dengan jenis data yang sama).
+    earliest_stmt = select(func.min(Post.created_at_source)).where(Post.deleted_at.is_(None))
+    if filters.data_type in ("real", "twitterapi_io"):
+        earliest_stmt = earliest_stmt.where(Post.is_synthetic.is_(False))
+    elif filters.data_type == "demo":
+        earliest_stmt = earliest_stmt.where(Post.is_synthetic.is_(True))
+    earliest = db.scalar(earliest_stmt)
+    if earliest is None:
+        return []
+    earliest_week = week_start(earliest.date())
+
+    day = func.date(Post.created_at_source)
+    stmt = filtered_query(
+        filters,
+        db,
+        Topic.slug,
+        Topic.name,
+        Topic.color,
+        day,
+        func.count(Post.id),
+        date_from=history_start,
+        date_to=filters.date_to,
+    ).join(Topic, Topic.id == PostAnalysis.topic_id)
+    rows = db.execute(stmt.group_by(Topic.slug, Topic.name, Topic.color, day)).all()
+
+    weekly: dict[str, dict[date, int]] = defaultdict(lambda: defaultdict(int))
+    meta: dict[str, tuple[str, str]] = {}
+    for slug, name, color, raw_day, total in rows:
+        current = raw_day if isinstance(raw_day, date) else date.fromisoformat(str(raw_day)[:10])
+        if isinstance(current, datetime):
+            current = current.date()
+        weekly[slug][week_start(current)] += int(total)
+        meta[slug] = (name, color)
+
+    last_day = filters.date_to.date()
+    spikes: list[dict] = []
+    for slug, counts in weekly.items():
+        cursor = first_week
+        while cursor <= last_day:
+            window_start = cursor - timedelta(weeks=baseline_weeks)
+            if window_start >= earliest_week:
+                previous = [
+                    counts.get(cursor - timedelta(weeks=offset), 0)
+                    for offset in range(baseline_weeks, 0, -1)
+                ]
+                count = counts.get(cursor, 0)
+                is_spike, baseline, increase = evaluate_issue_week(count, previous)
+                if is_spike:
+                    name, color = meta[slug]
+                    week_end = min(cursor + timedelta(days=6), last_day)
+                    spikes.append(
+                        {
+                            "date": cursor.isoformat(),
+                            "week_start": cursor.isoformat(),
+                            "week_end": week_end.isoformat(),
+                            "is_partial_week": week_end < cursor + timedelta(days=6),
+                            "topic_slug": slug,
+                            "topic_name": name,
+                            "color": color,
+                            "count": count,
+                            "baseline": round(baseline, 2),
+                            "previous_weeks": previous,
+                            "delta_percent": increase,
+                        }
+                    )
+            cursor += timedelta(weeks=1)
+
+    spikes.sort(key=lambda s: (s["week_start"], s["count"]), reverse=True)
+    return spikes
 
 
 def _group_count(db: Session, filters: FilterSet, column, *, date_from=None, date_to=None):

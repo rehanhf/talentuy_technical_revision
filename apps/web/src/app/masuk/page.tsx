@@ -70,7 +70,10 @@ export default function LoginPage() {
     } catch (caught) {
       setError(
         caught instanceof ApiError
-          ? caught.userMessage
+          ? // 401 saat login berarti kredensial salah, bukan sesi berakhir.
+            caught.status === 401
+            ? caught.message
+            : caught.userMessage
           : "Terjadi kesalahan tidak terduga.",
       );
     } finally {

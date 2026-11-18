@@ -18,12 +18,12 @@ dashboard, tidak diprofilkan, dan tidak diberi skor apa pun.
 | 3 | Tidak menginferensi atribut sensitif | Taxonomy hanya memuat topik pekerjaan; tidak ada label agama, suku, gender, kesehatan, politik, orientasi seksual, atau kondisi ekonomi |
 | 4 | Bukan dasar keputusan ketenagakerjaan | Disclaimer pada sidebar, halaman Metodologi, dan setiap laporan |
 | 5 | Tidak ada pencarian berbasis identitas | Pencarian hanya menyentuh teks ternormalisasi; kolom author tidak dapat difilter |
-| 6 | Minimalkan tampilan identitas | Hanya `external_post_id` dan tautan post; `author_public_id` tidak ditampilkan |
-| 7 | Hormati penghapusan post | Kolom `deleted_at`; post terhapus dikecualikan dari seluruh query |
+| 6 | Minimalkan tampilan identitas | Hanya `external_post_id` dan tautan post; `author_public_id` tidak ditampilkan. Setiap @handle di teks post diganti `@pengguna` sebelum disimpan (token seragam, karena mention tidak dianalisis) |
+| 7 | Hormati penghapusan post | Kolom `deleted_at`; post terhapus dikecualikan dari seluruh query. Job retensi (`app/retention.py`) menghapus permanen post nyata yang tidak relevan 14 hari setelah masuk dan post relevan tepat 90 hari setelah masuk |
 | 8 | Batasi ekspor data mentah | Ekspor default agregat; ekspor post-level hanya Post ID, waktu, topik, pekerjaan, tautan |
 | 9 | Tampilkan sumber, periode, metode, keterbatasan | Blok `meta` pada setiap response + halaman Metodologi & Etika |
 | 10 | Tidak mengklaim afiliasi dengan X | Tidak ada logo/nama X sebagai partner; disclaimer tetap pada sidebar |
-| 11 | Audit log | `audit_logs` mencatat impor, analisis ulang, perubahan taxonomy, koreksi label, insight, ekspor laporan |
+| 11 | Audit log | `audit_logs` mencatat impor, analisis ulang, perubahan taxonomy, koreksi label (nilai sebelum dan sesudah), insight, ekspor laporan, dan setiap putaran retensi yang menghapus data |
 | 12 | Credential hanya di server | `X_API_BEARER_TOKEN` dibaca `app/config.py`; tidak ada variabel `NEXT_PUBLIC_*` berisi rahasia |
 
 ## 3. Data sintetis
@@ -62,7 +62,7 @@ keterbatasan yang berbeda antara dokumen dan aplikasi.
 ## 6. Sebelum dipakai dengan data nyata
 
 - [ ] Perjanjian dan dasar hukum akses X API resmi tersedia.
-- [ ] Kebijakan retensi data ditetapkan (berapa lama post disimpan).
+- [x] Kebijakan retensi data ditetapkan dan dijalankan otomatis: post nyata yang tidak lolos filter relevansi dihapus 14 hari setelah masuk, post relevan dihapus tepat 90 hari setelah masuk (dapat disetel lewat `RETENTION_*`).
 - [ ] Proses menghormati penghapusan post dari sumber dijadwalkan.
 - [ ] `JWT_SECRET` dan password akun diganti dari nilai development.
 - [ ] Akun demo dinonaktifkan.

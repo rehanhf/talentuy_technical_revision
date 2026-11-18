@@ -189,8 +189,12 @@ export default function HomePage() {
           <Card
             className="tp-chart-panel"
             title="Volume percakapan harian"
-            description="Klik titik pada grafik untuk membuka post pada tanggal tersebut. Titik oranye menandai lonjakan terdeteksi."
-            definition="Jumlah post per hari setelah filter. Lonjakan dideteksi dengan moving average dan z-score; label bersifat deskriptif, bukan pernyataan sebab-akibat."
+            description="Klik titik pada grafik untuk membuka post pada tanggal tersebut. Titik oranye menandai awal minggu saat suatu kelompok isu melonjak."
+            definition={
+              data
+                ? `Jumlah post per hari setelah filter. ${data.spike_rule.description} Label bersifat deskriptif, bukan pernyataan sebab-akibat.`
+                : "Jumlah post per hari setelah filter."
+            }
           >
             {isLoading || !data ? (
               <ChartSkeleton />

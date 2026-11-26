@@ -58,7 +58,7 @@ const FORAGING_CONCEPTS: Array<{ concept: string; application: string }> = [
   {
     concept: "Information patch",
     application:
-      "Percakapan dikelompokkan menjadi kombinasi kategori isu × jenis pekerjaan (SPG/SPB, Staf Gudang, Kasir, Administrasi, Pengemudi) pada periode tertentu.",
+      "Percakapan dikelompokkan menjadi kombinasi kategori isu × jenis pekerjaan (Salesman, Merchandiser, SPG/SPB, Staf Officer, Administrasi, atau Lainnya) pada periode tertentu.",
   },
   {
     concept: "Cost of information",
@@ -296,8 +296,8 @@ export default function MethodologyPage() {
             <caption className="sr-only">
               Pemetaan tahap Ellis terhadap fitur TalentPulse
             </caption>
-            <thead>
-              <tr className="border-b border-line text-left text-muted">
+            <thead className="tp-thead">
+              <tr>
                 <th className="py-2 pr-3 font-medium">Tahap</th>
                 <th className="py-2 pr-3 font-medium">Kebutuhan pengguna</th>
                 <th className="py-2 font-medium">Implementasi di produk</th>
@@ -360,8 +360,8 @@ export default function MethodologyPage() {
           <div className="tp-scroll-x">
             <table className="w-full min-w-[520px] text-xs">
               <caption className="sr-only">Ringkasan metrik usability</caption>
-              <thead>
-                <tr className="border-b border-line text-left text-muted">
+              <thead className="tp-thead">
+                <tr>
                   <th className="py-2 pr-3 font-medium">Tugas</th>
                   <th className="py-2 pr-3 font-medium">Jenis kejadian</th>
                   <th className="py-2 pr-3 font-medium">Jumlah</th>

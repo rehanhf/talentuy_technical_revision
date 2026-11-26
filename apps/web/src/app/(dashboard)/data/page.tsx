@@ -56,6 +56,7 @@ const ACTION_LABEL: Record<string, string> = {
   "data.reanalyze": "Analisis ulang",
   "data.fetch_live": "Tarik data X API",
   "taxonomy.update": "Ubah taxonomy",
+  "taxonomy.job_roles_migrate": "Migrasi jenis pekerjaan",
   "label.correct": "Koreksi label",
   "label.review": "Tandai sudah diperiksa",
   "preset.create": "Tambah preset kata kunci",
@@ -855,8 +856,8 @@ export default function DataSettingsPage() {
           <div className="tp-scroll-x">
             <table className="w-full min-w-[620px] text-xs">
               <caption className="sr-only">Riwayat proses data</caption>
-              <thead>
-                <tr className="border-b border-line text-left text-muted">
+              <thead className="tp-thead">
+                <tr>
                   <th className="py-2 pr-3 font-medium">Waktu mulai</th>
                   <th className="py-2 pr-3 font-medium">Sumber</th>
                   <th className="py-2 pr-3 font-medium">Diterima</th>
@@ -924,8 +925,8 @@ export default function DataSettingsPage() {
           <div className="tp-scroll-x">
             <table className="w-full min-w-[560px] text-xs">
               <caption className="sr-only">Audit log</caption>
-              <thead>
-                <tr className="border-b border-line text-left text-muted">
+              <thead className="tp-thead">
+                <tr>
                   <th className="py-2 pr-3 font-medium">Waktu</th>
                   <th className="py-2 pr-3 font-medium">Pelaku</th>
                   <th className="py-2 pr-3 font-medium">Aksi</th>

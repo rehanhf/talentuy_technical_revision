@@ -25,7 +25,7 @@ const POST: Post = {
   engagement_score: 0,
   sentiment_label: "Negatif",
   intent_label: "Pertanyaan",
-  job_role: "Kasir",
+  job_role: "Merchandiser",
   topic_slug: "gaji-benefit",
   topic_name: "Gaji dan Benefit",
   relevance_score: 0.8,

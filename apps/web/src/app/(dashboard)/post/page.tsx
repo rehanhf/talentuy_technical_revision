@@ -112,7 +112,6 @@ export default function PostExplorerPage() {
       <PageHeader
         title="Pencarian Post"
         subtitle="Post ditampilkan sebagai konteks percakapan. Skor relevansi menilai kecocokan teks dengan query, bukan kualitas atau kelayakan penulisnya."
-        badge={data && <Tag tone="warning">{data.meta.is_synthetic ? "TERMASUK DATA DEMO" : "DATA NYATA"}</Tag>}
       />
 
       <Card

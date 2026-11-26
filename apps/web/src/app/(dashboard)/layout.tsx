@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { FilterPanel } from "@/components/filter-panel";
-import { Sidebar, TopBar } from "@/components/shell";
+import { PageTitleProvider, Sidebar, TopBar } from "@/components/shell";
 import { Drawer, InlineLoader } from "@/components/ui";
 import { useAuth } from "@/hooks/useAuth";
 import { FilterProvider } from "@/hooks/useFilters";
@@ -33,6 +33,7 @@ function Shell({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   return (
+    <PageTitleProvider>
     <div className="flex min-h-screen">
       <Sidebar
         collapsed={collapsed}
@@ -65,6 +66,7 @@ function Shell({ children }: { children: ReactNode }) {
         <FilterPanel />
       </Drawer>
     </div>
+    </PageTitleProvider>
   );
 }
 

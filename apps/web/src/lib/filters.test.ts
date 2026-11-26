@@ -29,7 +29,7 @@ describe("filter global", () => {
       ...defaultFilters(),
       q: "gaji AND gudang",
       topics: ["gaji-benefit", "shift-jam-kerja"],
-      job_roles: ["Staf Gudang"],
+      job_roles: ["SPG/SPB"],
       min_engagement: 20,
     };
 
@@ -39,7 +39,7 @@ describe("filter global", () => {
 
     expect(restored.q).toBe("gaji AND gudang");
     expect(restored.topics).toEqual(["gaji-benefit", "shift-jam-kerja"]);
-    expect(restored.job_roles).toEqual(["Staf Gudang"]);
+    expect(restored.job_roles).toEqual(["SPG/SPB"]);
     expect(restored.min_engagement).toBe(20);
   });
 

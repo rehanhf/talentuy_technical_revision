@@ -61,7 +61,7 @@ test("detail post menampilkan dasar klasifikasi dan koreksi dari tampilan yang s
 
   await drawer.getByRole("button", { name: "Koreksi jenis pekerjaan" }).click();
   await expect(drawer.getByLabel("Label", { exact: true })).toHaveValue("job_role");
-  await drawer.getByLabel("Label yang benar").selectOption("Kasir");
+  await drawer.getByLabel("Label yang benar").selectOption("Merchandiser");
   await drawer.getByRole("button", { name: "Simpan koreksi" }).click();
 
   await expect(page.getByText("Label berhasil dikoreksi.")).toBeVisible();

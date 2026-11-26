@@ -141,7 +141,7 @@ def test_filter_combination_narrows_results(db):
     base = make_filters(days=60)
     total = analytics.count_posts(db, base)
 
-    narrowed = make_filters(days=60, job_roles=["Staf Gudang"], sentiments=["Negatif"])
+    narrowed = make_filters(days=60, job_roles=["Salesman"], sentiments=["Negatif"])
     subset = analytics.count_posts(db, narrowed)
     assert subset <= total
 

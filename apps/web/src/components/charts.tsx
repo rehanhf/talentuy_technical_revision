@@ -123,7 +123,7 @@ export function ChartWithTable({
         <div className="tp-scroll-x max-h-[300px] overflow-y-auto">
           <table className="w-full text-xs">
             <caption className="sr-only">{summary}</caption>
-            <thead className="sticky top-0 bg-surface-muted text-left text-muted">
+            <thead className="tp-thead sticky top-0">
               <tr>
                 {columns.map((column) => (
                   <th key={column} scope="col" className="px-3 py-2 font-medium">

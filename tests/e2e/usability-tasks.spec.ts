@@ -14,8 +14,8 @@ test.beforeEach(async ({ page }) => {
   await login(page, "analyst");
 });
 
-test("Tugas 1 — menemukan topik dominan untuk staf gudang", async ({ page }) => {
-  await applyFilter(page, "Staf Gudang");
+test("Tugas 1 — menemukan topik dominan untuk SPG/SPB", async ({ page }) => {
+  await applyFilter(page, "SPG/SPB");
 
   const topicCard = page.getByRole("region", { name: "Topik terbanyak" });
   await expect(topicCard).toBeVisible();

@@ -36,10 +36,10 @@ Naskah pembuka (dibacakan):
 
 ### Tugas 1 — Menemukan topik dominan (target ≤ 2 menit)
 
-> "Temukan tiga topik yang paling banyak dibicarakan mengenai pekerjaan **staf
-> gudang** selama 30 hari terakhir."
+> "Temukan tiga topik yang paling banyak dibicarakan mengenai pekerjaan **SPG/SPB**
+> selama 30 hari terakhir."
 
-Jalur ideal: filter Jenis pekerjaan → "Staf Gudang" → Overview / Eksplorasi Topik.
+Jalur ideal: filter Jenis pekerjaan → "SPG/SPB" → Overview / Eksplorasi Topik.
 Sukses bila peserta menyebut tiga topik teratas beserta jumlah post.
 
 ### Tugas 2 — Menemukan pertanyaan berulang (target ≤ 3 menit)

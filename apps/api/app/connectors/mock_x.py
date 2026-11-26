@@ -16,12 +16,16 @@ from app.taxonomy import JOB_ROLES
 
 # Frasa peran seperti yang biasa ditulis pencari kerja di media sosial.
 ROLE_PHRASES: dict[str, list[str]] = {
+    "Salesman": ["sales", "salesman", "sales lapangan", "sales motoris", "sales kanvas"],
+    "Merchandiser": ["merchandiser", "MD", "md toko", "merchandiser supermarket"],
     "SPG/SPB": ["SPG", "SPB", "spg event", "sales promotion", "spg mall"],
-    "Staf Gudang": ["staf gudang", "helper gudang", "checker gudang", "packing gudang", "picker"],
-    "Kasir": ["kasir", "kasir minimarket", "kasir supermarket", "kasir toko"],
+    "Staf Officer": ["staff officer", "staf officer", "staf kantor", "officer"],
     "Administrasi": ["staff admin", "admin data entry", "admin kantor", "staf administrasi"],
-    "Pengemudi": ["driver", "sopir box", "driver kurir", "supir operasional", "pengemudi"],
-    "Lainnya": ["kerjaan ini", "posisi ini", "lowongan ini"],
+    # Posisi di luar lima posisi penempatan; tidak memicu label mana pun.
+    "Lainnya": [
+        "kerjaan ini", "posisi ini", "lowongan ini", "helper gudang", "kasir minimarket",
+        "driver", "security",
+    ],
 }
 
 LOCATIONS = [
@@ -318,14 +322,15 @@ class MockXConnector(SocialDataConnector):
 
     @staticmethod
     def _pick_role(rng: random.Random, topic_slug: str) -> str:
-        # Distribusi peran sengaja tidak merata agar mirip kondisi nyata.
+        # Distribusi peran sengaja tidak merata: SPG/SPB dan Salesman paling
+        # banyak karena keduanya posisi yang paling banyak ditempatkan mitra.
         weighted = (
-            ["Staf Gudang"] * 5
-            + ["SPG/SPB"] * 4
-            + ["Kasir"] * 4
-            + ["Administrasi"] * 3
-            + ["Pengemudi"] * 3
-            + ["Lainnya"] * 1
+            ["SPG/SPB"] * 6
+            + ["Salesman"] * 5
+            + ["Merchandiser"] * 3
+            + ["Administrasi"] * 2
+            + ["Staf Officer"] * 2
+            + ["Lainnya"] * 2
         )
         role = rng.choice(weighted)
         return rng.choice(ROLE_PHRASES.get(role, ROLE_PHRASES["Lainnya"]))

@@ -17,7 +17,7 @@ from app.nlp.base import (
     SentimentAnalyzer,
     TopicClassifier,
 )
-from app.taxonomy import JOB_ROLE_FALLBACK, TOPIC_SEED
+from app.taxonomy import JOB_ROLE_FALLBACK, JOB_ROLE_TRIGGERS, TOPIC_SEED
 
 MODEL_VERSION = "baseline-1.0.0"
 
@@ -120,12 +120,16 @@ _QUESTION_MARKERS = (
     "gimana", "gmn", "?",
 )
 
-_ROLE_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "SPG/SPB": ("spg", "spb", "sales promotion", "promotor", "penjaga stand"),
-    "Staf Gudang": ("gudang", "warehouse", "helper gudang", "checker", "packing", "picker"),
-    "Kasir": ("kasir", "cashier", "kasir minimarket", "kasir supermarket"),
-    "Administrasi": ("admin", "administrasi", "data entry", "staff admin", "admin gudang"),
-    "Pengemudi": ("pengemudi", "driver", "sopir", "supir", "kurir"),
+_ROLE_KEYWORDS: dict[str, tuple[str, ...]] = JOB_ROLE_TRIGGERS
+
+# Kata utuh, boleh berakhiran "-nya" (mis. "salesnya", "adminnya"), sehingga
+# "admin" tidak cocok di dalam "administrasi" dan "md" tidak cocok di tengah kata.
+_ROLE_PATTERNS: dict[str, list[tuple[str, re.Pattern[str]]]] = {
+    role: [
+        (kw, re.compile(rf"(?<![a-z0-9]){re.escape(kw)}(?:nya)?(?![a-z0-9])"))
+        for kw in keywords
+    ]
+    for role, keywords in _ROLE_KEYWORDS.items()
 }
 
 _STOPWORDS = {
@@ -284,8 +288,8 @@ class KeywordRoleTagger(JobRoleTagger):
     def tag(self, text: str) -> Label:
         normalized = normalize_text(text)
         best_role, best_score, hits = JOB_ROLE_FALLBACK, 0.0, []
-        for role, keywords in _ROLE_KEYWORDS.items():
-            matched = [kw for kw in keywords if kw.strip() in normalized]
+        for role, patterns in _ROLE_PATTERNS.items():
+            matched = [kw for kw, pattern in patterns if pattern.search(normalized)]
             if not matched:
                 continue
             score = sum(1 + len(kw.split()) * 0.5 for kw in matched)

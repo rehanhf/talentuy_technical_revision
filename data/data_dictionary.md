@@ -9,6 +9,9 @@ ERD di naskah memakai nama berbahasa Indonesia. Kolom **Nama ERD** pada tiap
 tabel memberi padanan untuk setiap kolom kode; nama kolom di database tidak
 berubah. Kolom `id` bernama `id` di semua entitas.
 
+ERD tidak lagi memuat SUMBER_DATA, VALIDASI, dan USULAN_KOREKSI (disesuaikan
+20 November 2026). Gambar 5b (skema bintang) dihapus.
+
 - Nama tanpa tanda diambil apa adanya dari ERD (FigJam *OTW sempro*, Gambar 5a-1 dan 5a-2).
 - Nama bertanda *(usulan)* belum ada di ERD dan mengikuti konvensi berikut:
   - `*_at` → `waktu_*` (`completed_at` = `waktu_selesai`)
@@ -40,10 +43,10 @@ Pengguna dashboard (bukan subjek data). Nama ERD: PENGGUNA.
 | `id` | `id` | String(36) | UUID |
 | `name` | `nama` | String(120) | Nama tampilan |
 | `email` | `email` | String(255), unik, indeks | Identitas login |
-| `password_hash` | `hash_kata_sandi` *(usulan)* | String(255) | bcrypt |
+| `password_hash` | `hash_kata_sandi` | String(255) | bcrypt |
 | `role` | `peran` | String(20) | `admin`, `analyst`, `viewer` |
 | `is_active` | `aktif` | Boolean | Akun nonaktif tidak dapat login |
-| `created_at` | `waktu_dibuat` *(usulan)* | DateTime | |
+| `created_at` | `waktu_dibuat` | DateTime | |
 
 ## topics
 
@@ -87,18 +90,18 @@ personal yang dapat langsung mengidentifikasi seseorang. Nama ERD: KIRIMAN.
 | Kolom | Nama ERD | Tipe | Keterangan |
 | --- | --- | --- | --- |
 | `external_post_id` | `id_eksternal` *(usulan)* | String(80), unik, indeks | ID post pada sumber; kunci deduplikasi |
-| `source` | `sumber_id` (di ERD berupa FK ke SUMBER_DATA) | String(20) | `demo`, `x_api`, `import` |
+| `source` | `sumber` | String(20) | `demo`, `x_api`, `import`; kolom teks biasa, bukan kunci asing |
 | `text` | `teks` | Text | Isi post |
 | `created_at_source` | `waktu_unggah` | DateTime, indeks | Waktu publikasi di sumber |
 | `language` | `bahasa` *(usulan)* | String(8) | `id`, `en` |
 | `author_public_id` | `akun_hash` | String(80), nullable | HMAC-SHA256 (hex) dari username dengan kunci `AUTHOR_HASH_KEY`; username asli **tidak pernah disimpan** dan kolom ini tidak dikirim ke UI |
 | `like_count`, `repost_count`, `reply_count`, `quote_count` | `jumlah_suka`, `jumlah_repost`, `jumlah_balasan`, `jumlah_kutipan` *(usulan)* | Integer | Metrik interaksi |
 | `url` | `tautan` | String(400), nullable | Tautan post; URL X disimpan sebagai `https://x.com/i/status/{id}` tanpa username |
-| `is_synthetic` | `sintetis` *(usulan)* | Boolean | `true` untuk data demo |
+| `is_synthetic` | `sintetis` | Boolean | `true` untuk data demo |
 | `ingested_at` | `waktu_masuk` | DateTime | Waktu masuk sistem |
 | `deleted_at` | `waktu_dihapus` *(usulan)* | DateTime, nullable, indeks | Soft delete; dikecualikan seluruh query. Post nyata yang ditandai terhapus dihapus permanen pada putaran retensi berikutnya. Retensi sendiri menghapus permanen post nyata yang tidak relevan 14 hari setelah masuk dan yang relevan tepat 90 hari setelah masuk |
 | `induk_id` | `induk_id` | String(36), nullable, indeks, FK → `posts.id` (`ON DELETE SET NULL`) | Post yang dibalas, bila post ini balasan dan induknya tersimpan |
-| `induk_external_id` | `induk_id_eksternal` *(usulan)* | String(80), nullable, indeks | ID post induk di X; dipakai untuk menautkan balasan yang masuk sebelum induknya |
+| `induk_external_id` | `induk_id_eksternal` | String(80), nullable, indeks | ID post induk di X; dipakai untuk menautkan balasan yang masuk sebelum induknya |
 
 Indeks gabungan: `ix_posts_source_created (source, created_at_source)`.
 
@@ -109,13 +112,13 @@ Hasil pipeline NLP; satu baris per post. Nama ERD: LABEL.
 | Kolom | Nama ERD | Tipe | Keterangan |
 | --- | --- | --- | --- |
 | `post_id` | `kiriman_id` | FK posts, unik, cascade | |
-| `normalized_text` | `teks_normal` *(usulan)* | Text | Teks ternormalisasi; target pencarian |
+| `normalized_text` | `teks_normal` | Text | Teks ternormalisasi; target pencarian |
 | `sentiment_label` | `sentimen` | String(20), indeks | `Positif`, `Netral`, `Negatif`, `Tidak Yakin` |
 | `sentiment_confidence` | `keyakinan_sentimen` *(usulan)* | Float | 0–1; 1.0 bila dikoreksi manusia |
 | `intent_label` | `intensi` | String(40), indeks | `Pertanyaan`, `Keluhan`, `Pengalaman`, `Informasi Lowongan`, `Promosi`, `Peringatan Penipuan` |
 | `intent_confidence` | `keyakinan_intensi` *(usulan)* | Float | 0–1 |
 | `topic_id` | `isu_id` | FK topics, nullable, indeks | `null` = belum masuk topik |
-| `job_role` | `jenis_pekerjaan` | String(60), indeks | Salah satu dari lima jenis pekerjaan naskah atau `Lainnya` |
+| `job_role` | `jenis_pekerjaan` | String(60), indeks | Salah satu dari lima posisi penempatan (Salesman, Merchandiser, SPG/SPB, Staf Officer, Administrasi) atau `Lainnya` |
 | `relevance_score` | `skor_relevansi` *(usulan)* | Float | Relevansi terhadap konteks rekrutmen |
 | `engagement_score` | `skor_keterlibatan` *(usulan)* | Float, indeks | `like×1 + repost×2 + reply×1,5 + quote×1,5` |
 | `keywords` | `kata_kunci` *(usulan)* | JSON (list) | Kata kunci hasil ekstraksi |
@@ -123,7 +126,7 @@ Hasil pipeline NLP; satu baris per post. Nama ERD: LABEL.
 | `model_version` | `versi_model` *(usulan)* | String(40) | Contoh `baseline-1.0.0`, `baseline-1.0.0+koreksi-manual` |
 | `analyzed_at` | `waktu_analisis` *(usulan)* | DateTime | |
 | `needs_review` | `perlu_tinjauan` *(usulan)* | Boolean | Keyakinan rendah → perlu tinjauan manusia |
-| `corrected_by` | `pengoreksi_id` *(usulan)* | FK users, nullable | Admin yang mengoreksi label |
+| `corrected_by` | `pengoreksi_id` | FK users, nullable | Admin yang mengoreksi label |
 
 Indeks gabungan: `ix_analysis_topic_sentiment`, `ix_analysis_role_intent`.
 
@@ -240,7 +243,7 @@ Log pengujian usability yang privacy-preserving. Nama ERD: LOG_KEBERGUNAAN.
 | Role | `admin`, `analyst`, `viewer` |
 | Sentimen | `Positif`, `Netral`, `Negatif`, `Tidak Yakin` |
 | Intent | `Pertanyaan`, `Keluhan`, `Pengalaman`, `Informasi Lowongan`, `Promosi`, `Peringatan Penipuan` |
-| Jenis pekerjaan | `SPG/SPB` (`spg_spb`), `Staf Gudang` (`staf_gudang`), `Kasir` (`kasir`), `Administrasi` (`administrasi`), `Pengemudi` (`pengemudi`), `Lainnya`. Nilai yang disimpan adalah label; kode hanya rujukan naskah 1.3 butir 2 |
+| Jenis pekerjaan | `Salesman` (`salesman`), `Merchandiser` (`merchandiser`), `SPG/SPB` (`spg_spb`), `Staf Officer` (`staf_officer`), `Administrasi` (`administrasi`), `Lainnya`. Nilai yang disimpan adalah label; kode hanya rujukan naskah 1.3 butir 2 |
 | Status insight | `draft`, `reviewed`, `approved` |
 | Status ingestion | `running`, `success`, `partial`, `failed` |
 | Bahasa | `id`, `en` |

@@ -53,7 +53,7 @@ tunggal saat menambah atau mengubah fitur.
 | Sumber data hanya unggahan asal berbahasa Indonesia di X | 1.3 butir 2 | Connector + filter ingest | Selesai |
 | Empat kategori isu: upah, kontrak, giliran kerja, keabsahan lowongan | 1.3 butir 2 | Taxonomy + `nlp/` | Selesai |
 | Tiga intensi: pertanyaan, keluhan, pengalaman | 1.3 butir 2 | Label intent | Selesai |
-| Lima jenis pekerjaan sebagai partisi dan filter | 1.3 butir 2, Tujuan 2 | `taxonomy.JOB_ROLES`, filter global, kartu partisi Eksplorasi Topik, heatmap Overview | Selesai |
+| Lima jenis pekerjaan sebagai partisi dan filter (posisi penempatan menurut wawancara Head of HR) | 1.3 butir 2, Tujuan 2 | `taxonomy.JOB_ROLES`, filter global, kartu partisi Eksplorasi Topik, heatmap Overview | Selesai |
 | Dua mode data beserta penandanya | 1.3 butir 3 | Badge + watermark laporan | Selesai |
 | Tiga peran pengguna | 1.3 butir 4 | Dihapus: satu tingkat akses setelah login, dilindungi tiga aturan insight | **Menyimpang dari naskah** |
 | Dasar klasifikasi tampil di antarmuka | 1.3 butir 5, Tujuan 3 | `post_analysis.explanation` + panel detail post | Selesai |
@@ -85,21 +85,28 @@ sidang. Rincian teknis ada di [`docs/api.md`](docs/api.md) dan
 
 ### 1. Partisi dan penyaringan jenis pekerjaan — selesai
 
-- Lima nilai mengikuti 1.3 butir 2: `spg_spb` (SPG/SPB), `staf_gudang`
-  (Staf Gudang), `kasir` (Kasir), `administrasi` (Administrasi), `pengemudi`
-  (Pengemudi), ditambah `Lainnya` untuk post yang tidak menyebut kelimanya. Yang
-  disimpan di basis data adalah label; kodenya ada di `JOB_ROLE_CODES`.
+- Lima nilai adalah posisi yang benar-benar ditempatkan PT Siprama Cakrawala
+  menurut wawancara dengan Head of HR: `salesman` (Salesman), `merchandiser`
+  (Merchandiser), `spg_spb` (SPG/SPB), `staf_officer` (Staf Officer),
+  `administrasi` (Administrasi), ditambah `Lainnya` untuk post yang jenis
+  pekerjaannya di luar kelima posisi itu. Yang disimpan di basis data adalah
+  label; kodenya ada di `JOB_ROLE_CODES`.
+- Setiap label dipicu kata dalam bahasa unggahan, bukan istilah resmi
+  (`JOB_ROLE_TRIGGERS` di `app/taxonomy.py`), dicocokkan sebagai kata utuh.
 - Tagger NLP, generator data demo, dan filter global memakai daftar yang sama.
 - Eksplorasi Topik menampilkan kartu per kombinasi kategori isu × jenis pekerjaan;
   "Lihat post" membuka Pencarian Post dengan kedua filter terpasang di URL.
 - Overview memuat matriks kategori isu × jenis pekerjaan (heatmap).
-- **Masih perlu dilakukan:** cocokkan daftar ini dengan transkrip wawancara. Bila
-  transkrip menyebut daftar lain, ubah naskah 1.3 butir 2 dan `app/taxonomy.py`
-  bersama-sama.
+- Naskah 1.3 butir 2 perlu memakai daftar yang sama; bila salah satunya diubah,
+  ubah keduanya bersama-sama.
 - **Basis data lama:** migration `b7c2d9e4f1a0` memetakan label lama (mis.
   `Driver` → `Pengemudi`, `Operator` → `Lainnya`). Pemetaan ini hanya pendekatan;
   jalankan **Data & Pengaturan → Analisis ulang** agar label dihitung ulang dari
   teks post.
+- **Daftar 20 November 2026:** migration `c6d1e8a4f7b2` memetakan `Staf Gudang`,
+  `Kasir`, dan `Pengemudi` ke `Lainnya` (SPG/SPB dan Administrasi tetap) dan
+  mencatat jumlah baris yang berubah di audit log. Salesman, Merchandiser, dan
+  Staf Officer baru terisi pada post lama setelah **Analisis ulang**.
 
 ### 2. Preset kata kunci — selesai
 

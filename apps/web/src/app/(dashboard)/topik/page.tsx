@@ -9,7 +9,6 @@ import { ActiveFilterChips } from "@/components/filter-panel";
 import { PageHeader } from "@/components/shell";
 import {
   Card,
-  ChangeBadge,
   ChartSkeleton,
   Drawer,
   ErrorState,
@@ -17,6 +16,7 @@ import {
   NoResultState,
   SentimentBadge,
   Skeleton,
+  TableSkeleton,
   Tag,
 } from "@/components/ui";
 import { useTopicDetail, useTopics } from "@/hooks/useApi";
@@ -26,99 +26,9 @@ import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { filtersToSearchParams } from "@/lib/filters";
 import { formatNumber, formatPercent, formatShortDate, truncate } from "@/lib/format";
-import type { TopicRolePartition, TopicRow } from "@/lib/types";
+import type { TopicRolePartition } from "@/lib/types";
 
-function TopicCard({
-  topic,
-  isFiltered,
-  onOpen,
-  onFilter,
-}: {
-  topic: TopicRow;
-  isFiltered: boolean;
-  onOpen: () => void;
-  onFilter: () => void;
-}) {
-  const topSentiments = Object.entries(topic.sentiment_counts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
-
-  return (
-    <article
-      className={cn(
-        "flex flex-col rounded-card border bg-surface p-4 transition hover:shadow-card",
-        isFiltered ? "border-primary" : "border-line",
-      )}
-    >
-      <div className="flex items-start gap-2.5">
-        <span
-          className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
-          style={{ backgroundColor: topic.color }}
-          aria-hidden
-        />
-        <div className="min-w-0 flex-1">
-          <h3 className="text-[14px] font-semibold leading-snug text-ink">{topic.name}</h3>
-          <p className="mt-0.5 text-[11px] text-muted">
-            {formatNumber(topic.count)} post · {formatPercent(topic.share)} percakapan
-          </p>
-        </div>
-        <ChangeBadge value={topic.change_percent} />
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <SentimentBadge label={topic.dominant_sentiment} />
-        {topic.negative_share >= 25 && (
-          <Tag tone="warning">{formatPercent(topic.negative_share)} negatif</Tag>
-        )}
-      </div>
-
-      {/* Bar komposisi sentimen tetap disertai angka agar tidak bergantung warna. */}
-      <div className="mt-3">
-        <div className="flex h-1.5 overflow-hidden rounded-full bg-surface-muted">
-          {topSentiments.map(([label, count]) => (
-            <span
-              key={label}
-              style={{
-                width: `${(count / Math.max(topic.count, 1)) * 100}%`,
-                backgroundColor:
-                  label === "Positif"
-                    ? "#16a34a"
-                    : label === "Negatif"
-                      ? "#dc2626"
-                      : label === "Tidak Yakin"
-                        ? "#f59e0b"
-                        : "#64748b",
-              }}
-              aria-hidden
-            />
-          ))}
-        </div>
-        <p className="mt-1.5 text-[11px] text-muted">
-          {topSentiments.map(([label, count]) => `${label} ${count}`).join(" · ")}
-        </p>
-      </div>
-
-      <div className="mt-3 flex items-center gap-3 border-t border-line pt-2.5">
-        <button
-          type="button"
-          onClick={onOpen}
-          className="text-xs font-medium text-primary hover:underline"
-        >
-          Buka detail
-        </button>
-        <button
-          type="button"
-          onClick={onFilter}
-          className="text-xs text-muted hover:text-ink"
-        >
-          {isFiltered ? "Hapus dari filter" : "Tambahkan ke filter"}
-        </button>
-      </div>
-    </article>
-  );
-}
-
-const PARTITION_PREVIEW = 9;
+const PARTITION_PREVIEW = 6;
 
 function PartitionCard({
   partition,
@@ -137,22 +47,22 @@ function PartitionCard({
           style={{ backgroundColor: partition.color }}
           aria-hidden
         />
-        <div className="min-w-0 flex-1">
-          <h3 className="text-[13px] font-semibold leading-snug text-ink">
-            {partition.topic_name}
-            <span className="font-normal text-muted"> × </span>
-            {partition.job_role}
-          </h3>
-          <p className="tabular mt-0.5 text-[11px] text-muted">
-            {formatNumber(partition.count)} post · {formatPercent(partition.share)} ·{" "}
-            {formatNumber(partition.questions)} pertanyaan
-          </p>
-        </div>
-        {partition.negative_share >= 25 && (
-          <Tag tone="warning">{formatPercent(partition.negative_share)} negatif</Tag>
-        )}
+        <h3 className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-ink">
+          {partition.topic_name}
+          <span className="font-normal text-muted"> × </span>
+          {partition.job_role}
+        </h3>
       </div>
-      <div className="mt-2 flex items-center gap-3">
+      <p className="tabular mt-1 text-[11px] text-muted">
+        {formatNumber(partition.count)} post · {formatPercent(partition.share)} ·{" "}
+        {formatNumber(partition.questions)} pertanyaan
+      </p>
+      {partition.negative_share >= 25 && (
+        <span className="mt-1.5 self-start">
+          <Tag tone="warning">{formatPercent(partition.negative_share)} negatif</Tag>
+        </span>
+      )}
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
         <button
           type="button"
           onClick={onOpenPosts}
@@ -210,7 +120,6 @@ function TopicExplorer() {
             ? `${formatNumber(data.total_posts)} post terklasifikasi ke dalam ${data.topics.length} topik pada ${data.meta.period_label}.`
             : "Menyiapkan daftar topik…"
         }
-        badge={data && <Tag tone="warning">{data.meta.is_synthetic ? "DATA DEMO" : "DATA LIVE"}</Tag>}
       />
 
       <ActiveFilterChips />
@@ -221,31 +130,88 @@ function TopicExplorer() {
         </Card>
       ) : (
         <div className="grid gap-4">
-          <section aria-label="Daftar topik">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {isLoading || !data
-                ? Array.from({ length: 6 }).map((_, index) => (
-                    <Skeleton key={index} className="h-[186px] w-full rounded-card" />
-                  ))
-                : data.topics.map((topic) => (
-                    <TopicCard
-                      key={topic.slug}
-                      topic={topic}
-                      isFiltered={filters.topics.includes(topic.slug)}
-                      onOpen={() => setActiveSlug(topic.slug)}
-                      onFilter={() => toggleValue("topics", topic.slug)}
-                    />
-                  ))}
-            </div>
-          </section>
+          {/*
+           * Baris atas: sebaran kata kunci di kiri, komposisi topik di kanan —
+           * mengikuti rancangan antarmuka.
+           */}
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+            <Card
+              title="Sebaran kata kunci"
+              description="Ukuran kata merepresentasikan frekuensi kemunculan. Klik kata untuk menjadikannya kata kunci pencarian."
+              definition="Kata kunci diekstraksi per post. Garis penghubung berarti dua kata sering muncul pada post yang sama."
+            >
+              {isLoading || !data ? (
+                <ChartSkeleton height={300} />
+              ) : (
+                <KeywordNetwork
+                  nodes={data.related_keywords.nodes}
+                  edges={data.related_keywords.edges}
+                  activeKeyword={filters.q}
+                  onSelect={(keyword) => {
+                    setFilters({ q: keyword });
+                    router.push("/post");
+                  }}
+                />
+              )}
+            </Card>
 
+            <Card
+              title="Komposisi topik"
+              description="Proporsi percakapan pada setiap kategori isu."
+              definition="Proporsi dihitung terhadap seluruh post terklasifikasi pada filter aktif."
+            >
+              {isLoading || !data ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <Skeleton key={index} className="h-9 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <ul className="space-y-2.5">
+                  {data.topics.slice(0, 8).map((topic) => (
+                    <li key={topic.slug}>
+                      <button
+                        type="button"
+                        onClick={() => toggleValue("topics", topic.slug)}
+                        className="w-full rounded-lg px-1 py-0.5 text-left transition hover:bg-surface-muted"
+                        aria-label={`Saring menurut topik ${topic.name}`}
+                      >
+                        <span className="flex items-baseline justify-between gap-3">
+                          <span className="min-w-0 truncate text-[13px] text-ink">
+                            {topic.name}
+                          </span>
+                          <span className="tabular shrink-0 text-[11px] font-medium text-muted">
+                            {formatPercent(topic.share)}
+                          </span>
+                        </span>
+                        <span className="mt-1 block h-2 overflow-hidden rounded-full bg-surface-muted">
+                          <span
+                            className="block h-full rounded-full"
+                            style={{
+                              // `share` sudah dalam satuan persen (0–100).
+                              width: `${Math.max(topic.share, 2)}%`,
+                              backgroundColor: topic.color,
+                            }}
+                            aria-hidden
+                          />
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </div>
+
+          {/* Baris bawah: partisi isu x pekerjaan di kiri, daftar topik di kanan. */}
+          <div className="grid gap-4 lg:grid-cols-2">
           <Card
             title="Kategori isu × jenis pekerjaan"
             description="Satu kartu untuk setiap kombinasi yang muncul pada filter aktif, diurutkan dari volume terbesar."
-            definition="Jenis pekerjaan mengikuti lima partisi naskah (SPG/SPB, Staf Gudang, Kasir, Administrasi, Pengemudi) ditambah Lainnya. Persentase dihitung terhadap seluruh post terklasifikasi."
+            definition="Jenis pekerjaan mengikuti lima posisi yang ditempatkan PT Siprama Cakrawala (Salesman, Merchandiser, SPG/SPB, Staf Officer, Administrasi) ditambah Lainnya. Persentase dihitung terhadap seluruh post terklasifikasi."
           >
             {isLoading || !data ? (
-              <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-2.5 sm:grid-cols-2">
                 {Array.from({ length: 6 }).map((_, index) => (
                   <Skeleton key={index} className="h-[86px] w-full" />
                 ))}
@@ -256,7 +222,7 @@ function TopicExplorer() {
               </p>
             ) : (
               <>
-                <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-2.5 sm:grid-cols-2">
                   {(showAllPartitions
                     ? data.partitions
                     : data.partitions.slice(0, PARTITION_PREVIEW)
@@ -299,32 +265,75 @@ function TopicExplorer() {
             )}
           </Card>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card
-              title="Kata kunci terkait"
-              description="Klik kata untuk menjadikannya kata kunci pencarian."
-              definition="Kata kunci diekstraksi per post. Garis penghubung berarti dua kata sering muncul pada post yang sama."
-            >
-              {isLoading || !data ? (
-                <ChartSkeleton height={300} />
-              ) : (
-                <KeywordNetwork
-                  nodes={data.related_keywords.nodes}
-                  edges={data.related_keywords.edges}
-                  activeKeyword={filters.q}
-                  onSelect={(keyword) => {
-                    setFilters({ q: keyword });
-                    router.push("/post");
-                  }}
-                />
-              )}
-            </Card>
+          <Card
+            title="Daftar topik"
+            description="Klik baris untuk melihat detail topik."
+            definition="Proporsi dihitung terhadap seluruh post terklasifikasi pada filter aktif."
+          >
+            {isLoading || !data ? (
+              <TableSkeleton rows={6} />
+            ) : (
+              <div className="tp-scroll-x">
+                <table className="w-full min-w-[460px] text-xs">
+                  <caption className="sr-only">
+                    Daftar kategori isu beserta jumlah, proporsi, dan sentimen dominan.
+                  </caption>
+                  <thead className="tp-thead">
+                    <tr>
+                      <th scope="col">#</th>
+                      <th scope="col">Nama topik</th>
+                      <th scope="col">Jumlah</th>
+                      <th scope="col">Proporsi</th>
+                      <th scope="col">Sentimen dominan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.topics.map((topic, index) => (
+                      <tr
+                        key={topic.slug}
+                        className={cn(
+                          "border-b border-line last:border-0",
+                          filters.topics.includes(topic.slug) && "bg-primary-soft",
+                        )}
+                      >
+                        <td className="tabular py-2 text-muted">{index + 1}</td>
+                        <td className="py-2">
+                          <button
+                            type="button"
+                            onClick={() => setActiveSlug(topic.slug)}
+                            className="flex items-center gap-2 text-left font-medium text-ink hover:text-primary hover:underline"
+                          >
+                            <span
+                              className="h-2.5 w-2.5 shrink-0 rounded-full"
+                              style={{ backgroundColor: topic.color }}
+                              aria-hidden
+                            />
+                            {topic.name}
+                          </button>
+                        </td>
+                        <td className="tabular py-2 font-medium">
+                          {formatNumber(topic.count)}
+                        </td>
+                        <td className="tabular py-2 text-muted">
+                          {formatPercent(topic.share)}
+                        </td>
+                        <td className="py-2">
+                          <SentimentBadge label={topic.dominant_sentiment} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+          </div>
 
-            <Card
-              title="Pertanyaan yang sering muncul"
-              description="Kandidat konten FAQ untuk komunikasi rekrutmen."
-              definition="Post ber-intent 'Pertanyaan' diurutkan berdasarkan relevansi pencarian."
-            >
+          <Card
+            title="Pertanyaan yang sering muncul"
+            description="Kandidat konten FAQ untuk komunikasi rekrutmen."
+            definition="Post ber-intent 'Pertanyaan' diurutkan berdasarkan relevansi pencarian."
+          >
               {isLoading || !data ? (
                 <div className="space-y-2">
                   {Array.from({ length: 6 }).map((_, index) => (
@@ -355,8 +364,7 @@ function TopicExplorer() {
                   ))}
                 </ul>
               )}
-            </Card>
-          </div>
+          </Card>
         </div>
       )}
 

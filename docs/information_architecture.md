@@ -98,7 +98,7 @@ menyempit) → buka topik dominan → baca post pertanyaan teratas → simpan se
 insight draft.
 
 **Flow B — Menjawab pertanyaan bisnis**
-Filter jenis pekerjaan "Staf Gudang" → Analisis Tren membandingkan dua periode →
+Filter jenis pekerjaan "SPG/SPB" → Analisis Tren membandingkan dua periode →
 Eksplorasi Topik melihat komposisi keluhan → susun laporan berisi grafik terpilih.
 
 **Flow C — Monitoring**

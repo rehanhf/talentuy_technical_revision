@@ -94,21 +94,21 @@ export function Card({
       className={cn("tp-card flex min-w-0 flex-col", className)}
       aria-label={title}
     >
-      <header className="flex flex-wrap items-start justify-between gap-3 px-6 pb-2 pt-6">
+      <header className="flex flex-wrap items-start justify-between gap-3 px-5 pb-1 pt-5">
         <div className="min-w-0">
-          <h2 className="flex items-center gap-1.5 text-[18px] font-medium tracking-tight text-ink">
+          <h2 className="flex items-center gap-1.5 text-[15px] font-semibold tracking-tight text-ink">
             {title}
             {definition && <InfoTooltip label={title} text={definition} />}
           </h2>
           {description && (
-            <p className="mt-1 text-xs leading-relaxed text-muted">{description}</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-muted">{description}</p>
           )}
         </div>
         {actions && (
           <div className="flex flex-wrap items-center gap-2">{actions}</div>
         )}
       </header>
-      <div className="min-w-0 flex-1 px-6 py-5">{children}</div>
+      <div className="min-w-0 flex-1 px-5 py-4">{children}</div>
       {dataSummary && (
         <p className="sr-only" aria-live="polite">
           {dataSummary}

@@ -53,11 +53,11 @@ const config: Config = {
         xs: ["0.75rem", { lineHeight: "1.1rem" }],
       },
       borderRadius: {
-        card: "20px",
+        card: "14px",
       },
       boxShadow: {
-        card: "0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.04)",
-        raised: "0 8px 24px rgba(16, 24, 40, 0.10)",
+        card: "0 1px 2px rgba(16, 24, 40, 0.04)",
+        raised: "0 12px 32px rgba(16, 24, 40, 0.12)",
         drawer: "-12px 0 40px rgba(16, 24, 40, 0.14)",
       },
       keyframes: {

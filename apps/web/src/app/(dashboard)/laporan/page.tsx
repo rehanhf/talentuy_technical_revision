@@ -828,8 +828,8 @@ export default function ReportPage() {
                 </h4>
                 <div className="tp-scroll-x">
                   <table className="w-full min-w-[280px] text-xs">
-                    <thead>
-                      <tr className="border-b border-line text-left text-muted">
+                    <thead className="tp-thead">
+                      <tr>
                         {chart.columns.map((column) => (
                           <th key={column} className="py-1.5 pr-3 font-medium">
                             {column}

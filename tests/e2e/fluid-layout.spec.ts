@@ -19,7 +19,7 @@ test("rail, filter drawer, dan navigasi mobile tetap dapat dioperasikan", async 
   const drawer = page.getByRole("dialog", { name: "Filter global" });
   await expect(drawer).toBeVisible();
   await expect(drawer.getByRole("button", { name: "Tutup panel detail" })).toBeFocused();
-  await drawer.getByRole("checkbox", { name: "Staf Gudang", exact: true }).check();
+  await drawer.getByRole("checkbox", { name: "SPG/SPB", exact: true }).check();
   await page.keyboard.press("Escape");
   await expect(drawer).toBeHidden();
   await expect(filter).toBeFocused();
@@ -48,7 +48,7 @@ test("periode dan filter bertahan saat menelusuri post", async ({ page }) => {
   await expect(page).toHaveURL(/q=gaji/);
   await page.getByRole("button", { name: "Buka filter global" }).click();
   const drawer = page.getByRole("dialog", { name: "Filter global" });
-  await drawer.getByRole("checkbox", { name: "Staf Gudang", exact: true }).check();
+  await drawer.getByRole("checkbox", { name: "SPG/SPB", exact: true }).check();
   await drawer.getByRole("button", { name: "Lihat hasil", exact: true }).click();
   await expect(drawer).toBeHidden();
   await expect(page).toHaveURL(/date_from=/);

@@ -21,7 +21,6 @@ import {
   NoResultState,
   SentimentBadge,
   Skeleton,
-  Tag,
 } from "@/components/ui";
 import { useOverview } from "@/hooks/useApi";
 import { useFilters } from "@/hooks/useFilters";
@@ -82,13 +81,6 @@ export default function HomePage() {
           data
             ? `${filters.q ? `Query "${filters.q}" · ` : ""}Periode ${data.meta.period_label} · dibandingkan dengan periode sebelumnya yang sama panjang.`
             : "Menyiapkan ringkasan periode aktif…"
-        }
-        badge={
-          data && (
-            <Tag tone={data.meta.is_synthetic ? "warning" : "primary"}>
-              {data.meta.is_synthetic ? "DATA DEMO" : "DATA LIVE"}
-            </Tag>
-          )
         }
         actions={
           <>

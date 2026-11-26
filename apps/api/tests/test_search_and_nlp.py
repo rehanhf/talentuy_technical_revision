@@ -86,29 +86,47 @@ def test_negation_flips_positive_phrase():
 
 
 def test_job_role_tagging():
-    assert pipeline.run("lowongan helper gudang di cikarang").job_role == "Staf Gudang"
+    assert pipeline.run("dicari sales motoris area bekasi").job_role == "Salesman"
+    assert pipeline.run("gaji md toko sekarang berapa ya").job_role == "Merchandiser"
     assert pipeline.run("dibutuhkan spg mall untuk event").job_role == "SPG/SPB"
-    assert pipeline.run("kasir minimarket shift malam").job_role == "Kasir"
+    assert pipeline.run("lowongan staff officer penempatan jakarta").job_role == "Staf Officer"
     assert pipeline.run("lowongan staff admin data entry").job_role == "Administrasi"
-    assert pipeline.run("dicari sopir box sim b").job_role == "Pengemudi"
+    # Posisi di luar lima posisi penempatan masuk Lainnya.
+    assert pipeline.run("lowongan helper gudang di cikarang").job_role == "Lainnya"
+    assert pipeline.run("kasir minimarket shift malam").job_role == "Lainnya"
     assert pipeline.run("cuaca hari ini cerah sekali").job_role == "Lainnya"
 
 
-def test_job_roles_follow_thesis_partition():
-    """Naskah 1.3 butir 2: lima jenis pekerjaan, ditambah penampung Lainnya."""
-    from app.taxonomy import JOB_ROLE_CODES, JOB_ROLES
+def test_job_role_triggers_match_whole_words():
+    # "sales promotion" lebih spesifik daripada "sales" -> SPG/SPB, bukan Salesman.
+    assert pipeline.run("loker sales promotion di mall").job_role == "SPG/SPB"
+    # Akhiran -nya tetap cocok.
+    assert pipeline.run("adminnya galak banget").job_role == "Administrasi"
+    # "administrasi" pada "biaya administrasi" bukan penanda jenis pekerjaan.
+    assert pipeline.run("diminta bayar biaya administrasi dulu").job_role == "Lainnya"
+    # "md" tidak cocok di tengah kata.
+    assert pipeline.run("cmd error terus").job_role == "Lainnya"
 
-    assert list(JOB_ROLE_CODES) == ["spg_spb", "staf_gudang", "kasir", "administrasi", "pengemudi"]
+
+def test_job_roles_follow_siprama_positions():
+    """Lima posisi penempatan PT Siprama Cakrawala, ditambah penampung Lainnya."""
+    from app.taxonomy import JOB_ROLE_CODES, JOB_ROLE_TRIGGERS, JOB_ROLES
+
+    assert JOB_ROLES == [
+        "Salesman", "Merchandiser", "SPG/SPB", "Staf Officer", "Administrasi", "Lainnya"
+    ]
     assert JOB_ROLES == [*JOB_ROLE_CODES.values(), "Lainnya"]
+    # Setiap label selain Lainnya punya kata pemicu.
+    assert list(JOB_ROLE_TRIGGERS) == JOB_ROLES[:-1]
 
 
 def test_every_label_carries_its_classification_basis():
-    result = pipeline.run("min gaji kasir di bekasi udah umr belum? kecewa sama potongannya")
+    result = pipeline.run("min gaji spg di bekasi udah umr belum? kecewa sama potongannya")
     assert set(result.explanation) == {"topic", "sentiment", "intent", "job_role"}
     for entry in result.explanation.values():
         assert entry["rule"]
     assert "gaji" in result.explanation["topic"]["triggers"]
-    assert "kasir" in result.explanation["job_role"]["triggers"]
+    assert "spg" in result.explanation["job_role"]["triggers"]
     assert "?" in result.explanation["intent"]["triggers"]
     assert "kecewa" in result.explanation["sentiment"]["triggers"]
 

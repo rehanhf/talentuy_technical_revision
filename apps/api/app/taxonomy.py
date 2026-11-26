@@ -6,21 +6,49 @@ oleh admin melalui halaman Data & Pengaturan.
 
 from __future__ import annotations
 
-# Lima jenis pekerjaan mengikuti naskah 1.3 butir 2, ditambah "Lainnya" sebagai
-# penampung post yang tidak menyebut salah satu dari kelimanya.
+# Lima posisi yang benar-benar ditempatkan PT Siprama Cakrawala menurut wawancara
+# dengan Head of HR, ditambah "Lainnya" sebagai penampung post yang jenis
+# pekerjaannya di luar kelima posisi itu. Label memakai istilah perusahaan.
 JOB_ROLE_CODES: dict[str, str] = {
+    "salesman": "Salesman",
+    "merchandiser": "Merchandiser",
     "spg_spb": "SPG/SPB",
-    "staf_gudang": "Staf Gudang",
-    "kasir": "Kasir",
+    "staf_officer": "Staf Officer",
     "administrasi": "Administrasi",
-    "pengemudi": "Pengemudi",
 }
 
 JOB_ROLE_FALLBACK = "Lainnya"
 
 JOB_ROLES: list[str] = [*JOB_ROLE_CODES.values(), JOB_ROLE_FALLBACK]
 
-# Pemetaan label lama (10 jenis pekerjaan) ke partisi baru, dipakai migration.
+# Kata pemicu per label, dalam bahasa yang dipakai pekerja di unggahan (bukan
+# istilah resmi). Dicocokkan sebagai kata utuh pada teks ternormalisasi
+# (huruf kecil), boleh diikuti akhiran "-nya". "Lainnya" tidak punya pemicu:
+# label itu dipakai bila tidak ada pemicu yang cocok.
+# Sengaja tidak memuat "administrasi" saja: frasa "biaya administrasi" lazim
+# pada unggahan penipuan lowongan dan bukan penanda jenis pekerjaan.
+JOB_ROLE_TRIGGERS: dict[str, tuple[str, ...]] = {
+    "Salesman": (
+        "sales", "salesman", "sales lapangan", "sales motoris", "sales kanvas",
+        "kanvaser", "canvasser", "taking order",
+    ),
+    "Merchandiser": (
+        "merchandiser", "merchandising", "md", "display barang", "display produk",
+        "susun barang", "isi rak",
+    ),
+    "SPG/SPB": ("spg", "spb", "sales promotion", "promotor", "penjaga stand"),
+    "Staf Officer": (
+        "officer", "staff officer", "staf officer", "staf kantor", "staff kantor",
+        "office staff",
+    ),
+    "Administrasi": (
+        "admin", "adm", "staf admin", "staff admin", "staf administrasi",
+        "staff administrasi", "data entry", "input data",
+    ),
+}
+
+# Pemetaan label lama (10 jenis pekerjaan) ke partisi 20 Oktober 2026, dipakai
+# migration b7c2d9e4f1a0. Bersifat historis; jangan diubah.
 LEGACY_JOB_ROLE_MAP: dict[str, str] = {
     "Sales Promotion Girl/Boy": "SPG/SPB",
     "Admin": "Administrasi",

@@ -43,10 +43,10 @@ def test_overview_returns_all_sections_with_meta(client, analyst_headers):
 def test_overview_respects_job_role_filter(client, analyst_headers):
     everything = client.get("/dashboard/overview", headers=analyst_headers).json()
     filtered = client.get(
-        "/dashboard/overview", headers=analyst_headers, params={"job_roles": ["Staf Gudang"]}
+        "/dashboard/overview", headers=analyst_headers, params={"job_roles": ["Salesman"]}
     ).json()
     assert filtered["kpis"]["total_posts"]["value"] <= everything["kpis"]["total_posts"]["value"]
-    assert filtered["meta"]["applied_filters"]["job_roles"] == ["Staf Gudang"]
+    assert filtered["meta"]["applied_filters"]["job_roles"] == ["Salesman"]
 
 
 def test_trends_weekly_and_annotations(client, analyst_headers):
@@ -589,7 +589,7 @@ def test_label_correction_records_previous_rule(client, analyst_headers):
     post = client.get("/posts", headers=analyst_headers, params={"page_size": 5}).json()["items"][1]
     auto_rule = post["explanation"]["job_role"]["rule"]
     response = client.patch(
-        f"/posts/{post['id']}/labels", headers=analyst_headers, json={"job_role": "Kasir"}
+        f"/posts/{post['id']}/labels", headers=analyst_headers, json={"job_role": "Merchandiser"}
     )
     assert response.status_code == 200
 
@@ -877,7 +877,7 @@ def test_system_ops_flag_is_exposed_and_opens_the_gate(client, viewer_headers, m
 def test_label_correction_names_the_corrector(client, viewer_headers):
     post = client.get("/posts", headers=viewer_headers, params={"page_size": 5}).json()["items"][3]
     me = client.get("/auth/me", headers=viewer_headers).json()
-    target = "Kasir" if post["job_role"] != "Kasir" else "Administrasi"
+    target = "Staf Officer" if post["job_role"] != "Staf Officer" else "Administrasi"
     client.patch(f"/posts/{post['id']}/labels", headers=viewer_headers, json={"job_role": target})
 
     updated = client.get(f"/posts/{post['id']}", headers=viewer_headers).json()
